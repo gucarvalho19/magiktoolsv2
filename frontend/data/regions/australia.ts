@@ -1,0 +1,10 @@
+export const australiaRegions = [
+  "Australian Capital Territory, Australia",
+  "New South Wales, Australia",
+  "Northern Territory, Australia",
+  "Queensland, Australia",
+  "South Australia, Australia",
+  "Tasmania, Australia",
+  "Victoria, Australia",
+  "Western Australia, Australia"
+];
