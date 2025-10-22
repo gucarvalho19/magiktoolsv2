@@ -20,7 +20,7 @@ export function useUser() {
 export function useClerk() {
   if (config.disableAuth) {
     return {
-      signOut: () => {
+      signOut: async () => {
         console.log('Dev mode: signOut called but disabled');
       },
     };

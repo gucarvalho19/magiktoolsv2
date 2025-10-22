@@ -64,7 +64,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
         <MembershipGate>{children}</MembershipGate>
       </SignedIn>
       <SignedOut>
-        <RedirectToSignIn signInFallbackRedirectUrl="/dashboard" />
+        <RedirectToSignIn />
       </SignedOut>
     </>
   );
@@ -237,11 +237,8 @@ function AppWithAuth() {
   return (
     <ClerkProvider
       publishableKey={PUBLISHABLE_KEY}
-      frontendApi={config.clerk.frontendApi}
-      signInUrl={config.clerk.signInUrl}
-      signUpUrl={config.clerk.signUpUrl}
-      afterSignInUrl="/dashboard"
-      afterSignUpUrl="/dashboard"
+      signInFallbackRedirectUrl="/dashboard"
+      signUpFallbackRedirectUrl="/dashboard"
     >
       <ClerkLoaded>
         <AppContent />

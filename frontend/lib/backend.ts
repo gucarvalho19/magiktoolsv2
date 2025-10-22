@@ -11,10 +11,12 @@ export function useBackend() {
     });
   }
 
-  const { getToken, isSignedIn } = useAuth();
-  if (!isSignedIn) return backend;
-  return backend.with({auth: async () => {
-    const token = await getToken();
-    return {authorization: `Bearer ${token}`};
-  }});
+  const { getToken } = useAuth();
+  return backend.with({
+    auth: async () => {
+      const token = await getToken();
+      if (!token) return {};
+      return { authorization: `Bearer ${token}` };
+    }
+  });
 }

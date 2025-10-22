@@ -170,7 +170,7 @@ export default function UserAvatar({ showName = true, className = "" }: UserAvat
               <hr className="my-2 border-border" />
               
               <button
-                onClick={() => handleMenuItemClick(() => signOut())}
+                onClick={() => handleMenuItemClick(() => signOut({ redirectUrl: '/' }))}
                 className="w-full flex items-center px-4 py-3 sm:py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors touch-manipulation"
               >
                 <LogOut className="h-4 w-4 mr-3" />
