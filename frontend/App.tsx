@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -27,36 +27,7 @@ const PUBLISHABLE_KEY = config.clerk.publishableKey;
 
 console.log('🚀 NEW BUILD DEPLOYED - timestamp:', Date.now());
 
-function DiagnosticView() {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="max-w-2xl w-full bg-card border border-border rounded-lg p-6">
-        <h1 className="text-2xl font-bold text-foreground mb-4">⚠️ Diagnóstico de Configuração</h1>
-        <div className="space-y-4">
-          <div>
-            <h2 className="font-semibold text-foreground mb-2">VITE_CLERK_PUBLISHABLE_KEY:</h2>
-            <code className="block bg-muted p-2 rounded text-sm">
-              {import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || "❌ NÃO DEFINIDA"}
-            </code>
-          </div>
-          <div>
-            <h2 className="font-semibold text-foreground mb-2">Variáveis de Ambiente Disponíveis:</h2>
-            <pre className="bg-muted p-2 rounded text-sm overflow-auto">
-              {JSON.stringify(import.meta.env, null, 2)}
-            </pre>
-          </div>
-          <div className="border-t border-border pt-4 mt-4">
-            <p className="text-sm text-muted-foreground">
-              Para resolver este problema, garanta que o secret <code className="bg-muted px-1 rounded">VITE_CLERK_PUBLISHABLE_KEY</code> esteja configurado corretamente no ambiente de produção.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
+function ProtectedRoute({ children }: { children: any }) {
   if (DISABLE_AUTH) return <>{children}</>;
   return (
     <>
@@ -265,10 +236,6 @@ export default function App() {
         </Router>
       </ThemeProvider>
     );
-  }
-
-  if (!PUBLISHABLE_KEY) {
-    return <DiagnosticView />;
   }
 
   return (

@@ -2,7 +2,7 @@
 
 ## Visão Geral
 
-Este documento descreve como as chaves do Clerk são geridas e utilizadas no projeto, permitindo o uso de chaves de produção (`pk_live_...`) em domínios de produção (`*.magik.tools`) e chaves de teste (`pk_test_...`) em ambientes de preview (`*.lp.dev`).
+Este documento descreve como as chaves do Clerk são geridas e utilizadas no projeto. A aplicação utiliza **uma única variável de ambiente** (`VITE_CLERK_PUBLISHABLE_KEY`) configurada de acordo com o ambiente de execução (desenvolvimento/preview ou produção).
 
 ## Estrutura de Chaves
 
@@ -10,17 +10,12 @@ Este documento descreve como as chaves do Clerk são geridas e utilizadas no pro
 
 **Tipo:** Publishable Keys (chaves públicas, seguras para exposição no cliente)
 
-**Chaves Utilizadas:**
+**Chave Utilizada:**
 
-1. **Produção** (`pk_live_...`):
-   - Usada quando o hostname corresponde a `*.magik.tools`
-   - Configurada em: `frontend/.env.production`
-   - Variável: `VITE_CLERK_PUBLISHABLE_KEY`
-
-2. **Desenvolvimento/Preview** (`pk_test_...`):
-   - Usada quando o hostname **NÃO** corresponde a `*.magik.tools` (ex: `*.lp.dev`)
-   - Configurada em: `frontend/.env.development`
-   - Variável: `VITE_CLERK_PUBLISHABLE_KEY_DEV`
+- **Variável única:** `VITE_CLERK_PUBLISHABLE_KEY`
+  - Para **desenvolvimento/preview**: deve conter uma chave de teste (`pk_test_...`)
+  - Para **produção**: deve conter uma chave de produção (`pk_live_...`)
+  - **Obrigatória**: A aplicação gerará erro em build-time ou runtime se não estiver definida (exceto quando `VITE_DISABLE_AUTH=1`)
 
 **Consumidor:** `ClerkProvider` do `@clerk/clerk-react`
 
@@ -42,36 +37,32 @@ Este documento descreve como as chaves do Clerk são geridas e utilizadas no pro
 
 ## Implementação
 
-### 1. Arquivos de Ambiente (Frontend)
+### 1. Configuração de Ambiente (Frontend)
 
-#### `frontend/.env.production`
-```env
-# Clerk Publishable Key for Production (*.magik.tools)
-VITE_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsubWFnaWsudG9vbHMk
-```
+**IMPORTANTE:** Não há mais lógica de runtime para alternar entre chaves. A aplicação usa **apenas** `VITE_CLERK_PUBLISHABLE_KEY`, que deve ser configurada pelo ambiente de deploy:
 
-#### `frontend/.env.development`
-```env
-# Clerk Publishable Key for Development/Preview (*.lp.dev)
-VITE_CLERK_PUBLISHABLE_KEY_DEV=pk_test_YYYYYYYYYYYYYYYY
-```
+- **Desenvolvimento/Preview (*.lp.dev):** Defina `VITE_CLERK_PUBLISHABLE_KEY=pk_test_...` 
+- **Produção (*.magik.tools):** Defina `VITE_CLERK_PUBLISHABLE_KEY=pk_live_...`
 
-### 2. Lógica de Switch (Frontend)
+### 2. Validação de Chave (Frontend)
 
 **Arquivo:** `frontend/config.ts`
 
 ```typescript
-const isProdHost = typeof window !== 'undefined' && /\.magik\.tools$/i.test(window.location.hostname);
+const DISABLE_AUTH = import.meta.env.VITE_DISABLE_AUTH === '1';
 
-const PUBLISHABLE_KEY = isProdHost
-  ? import.meta.env.VITE_CLERK_PUBLISHABLE_KEY           // pk_live (produção)
-  : import.meta.env.VITE_CLERK_PUBLISHABLE_KEY_DEV;      // pk_test (preview/dev)
+const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY || '';
 
-if (!PUBLISHABLE_KEY) {
-  throw new Error("Missing Clerk publishable key for this environment");
+if (!DISABLE_AUTH && !PUBLISHABLE_KEY) {
+  throw new Error(
+    '[Clerk Config Error] VITE_CLERK_PUBLISHABLE_KEY is required but not defined. ' +
+    'Please set this environment variable with your Clerk publishable key ' +
+    '(pk_test_... for development/preview or pk_live_... for production).'
+  );
 }
 
 export const config = {
+  disableAuth: DISABLE_AUTH,
   clerk: {
     publishableKey: PUBLISHABLE_KEY,
   },
@@ -87,9 +78,13 @@ import { config } from './config';
 const PUBLISHABLE_KEY = config.clerk.publishableKey;
 
 export default function App() {
+  if (config.disableAuth) {
+    return <AppContent />;
+  }
+
   return (
     <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-      {/* ... */}
+      <AppContent />
     </ClerkProvider>
   );
 }
@@ -133,13 +128,11 @@ export const auth = authHandler<AuthParams, AuthData>(
 
 ## Como Funciona
 
-### Fluxo de Seleção de Chave (Frontend)
+### Fluxo de Configuração (Frontend)
 
-1. **Detecção de ambiente:** A aplicação verifica o `window.location.hostname` em runtime
-2. **Seleção de chave:**
-   - Se o hostname termina com `.magik.tools` → usa `VITE_CLERK_PUBLISHABLE_KEY` (pk_live)
-   - Caso contrário (ex: `.lp.dev`) → usa `VITE_CLERK_PUBLISHABLE_KEY_DEV` (pk_test)
-3. **Validação:** Se nenhuma chave estiver disponível, lança erro
+1. **Build-time/Runtime:** A aplicação lê `VITE_CLERK_PUBLISHABLE_KEY` das variáveis de ambiente
+2. **Validação:** Se a chave não estiver definida (e `VITE_DISABLE_AUTH !== '1'`), a aplicação lança erro imediatamente
+3. **Uso:** A chave é passada diretamente para o `ClerkProvider` sem lógica de switching
 
 ### Fluxo de Autenticação (Backend)
 
@@ -147,7 +140,23 @@ export const auth = authHandler<AuthParams, AuthData>(
 2. O backend usa `ClerkSecretKey` (configurado via Secrets do Leap) para verificar o token
 3. O backend obtém os dados do usuário via `clerkClient.users.getUser()`
 
-## Configuração de Secrets (Leap)
+## Configuração de Secrets
+
+### Frontend (Variáveis de Ambiente)
+
+Configure `VITE_CLERK_PUBLISHABLE_KEY` de acordo com o ambiente:
+
+**Desenvolvimento/Preview:**
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_test_Y2xlcmsubWFnaWsudG9vbHMk
+```
+
+**Produção:**
+```env
+VITE_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsubWFnaWsudG9vbHMk
+```
+
+### Backend (Leap Secrets)
 
 Para configurar o `ClerkSecretKey` no backend:
 
@@ -158,23 +167,35 @@ Para configurar o `ClerkSecretKey` no backend:
 
 ## Resolução de Problemas
 
+### Erro: "VITE_CLERK_PUBLISHABLE_KEY is required but not defined"
+
+**Causa:** Variável de ambiente não configurada
+
+**Solução:**
+1. Certifique-se de que `VITE_CLERK_PUBLISHABLE_KEY` está definida no ambiente de deploy
+2. Para desenvolvimento local, crie arquivo `.env` em `/frontend/` com:
+   ```env
+   VITE_CLERK_PUBLISHABLE_KEY=pk_test_...
+   ```
+3. Rebuild a aplicação
+
 ### Erro: "Production Keys are only allowed for domain 'magik.tools'"
 
 **Causa:** Chave `pk_live_...` sendo usada em domínio não autorizado (ex: `*.lp.dev`)
 
 **Solução:** 
-1. Verifique se `frontend/.env.development` contém `VITE_CLERK_PUBLISHABLE_KEY_DEV=pk_test_...`
-2. Certifique-se de que a lógica de switch em `frontend/config.ts` está correta
-3. Limpe o cache do navegador e recarregue a aplicação
+1. Verifique qual chave está configurada em `VITE_CLERK_PUBLISHABLE_KEY`
+2. Para ambientes de preview/desenvolvimento, use `pk_test_...`
+3. Para produção em `*.magik.tools`, use `pk_live_...`
 
-### Erro: "Missing Clerk publishable key for this environment"
+### Erro: Console mostra "[Clerk Config Error]"
 
-**Causa:** Variável de ambiente não configurada
+**Causa:** A validação em `config.ts` detectou ausência da chave
 
 **Solução:**
-1. Verifique se os arquivos `.env.production` e `.env.development` existem em `/frontend/`
-2. Certifique-se de que as variáveis estão corretamente definidas
-3. Rebuild a aplicação para carregar as novas variáveis
+1. Verifique se `VITE_CLERK_PUBLISHABLE_KEY` está configurada
+2. Certifique-se de que a variável não está vazia
+3. Se estiver usando `VITE_DISABLE_AUTH=1`, ignore este erro (comportamento esperado em modo dev)
 
 ## Checklist de Segurança
 
@@ -182,23 +203,46 @@ Para configurar o `ClerkSecretKey` no backend:
 - ✅ Chaves públicas (`pk_live_...`, `pk_test_...`) usadas apenas no frontend
 - ✅ Secrets geridos via sistema de Secrets do Leap (backend)
 - ✅ Zero hardcoded keys no código fonte
-- ✅ Alternância automática baseada em hostname
-- ✅ Validação de presença de chaves em tempo de execução
+- ✅ Validação de presença de chave em build-time/runtime
+- ✅ Erro explícito se chave não estiver configurada
+- ✅ Sem lógica de runtime switching (simplificado para configuração por ambiente)
+
+## Mudanças Recentes (2025-10-22)
+
+### O que foi alterado:
+
+1. **Removida lógica de runtime switching:** 
+   - Anteriormente, o código verificava `window.location.hostname` para escolher entre `VITE_CLERK_PUBLISHABLE_KEY` e `VITE_CLERK_PUBLISHABLE_KEY_DEV`
+   - Agora usa **apenas** `VITE_CLERK_PUBLISHABLE_KEY`, configurada pelo ambiente de deploy
+
+2. **Validação estrita adicionada:**
+   - `frontend/config.ts` agora lança erro imediatamente se `VITE_CLERK_PUBLISHABLE_KEY` não estiver definida
+   - Erro é descritivo e indica ao desenvolvedor como corrigir o problema
+
+3. **Simplificação do App.tsx:**
+   - Removida função `DiagnosticView` (não mais necessária)
+   - Removida condicional `if (!PUBLISHABLE_KEY)` no render principal
+   - Aplicação agora falha rapidamente (fail-fast) se a configuração estiver incorreta
+
+### Por que foi alterado:
+
+- **Previsibilidade:** Configuração baseada em ambiente é mais previsível que lógica de runtime
+- **Segurança:** Reduz chance de usar chave errada por acidente
+- **Simplicidade:** Menos código, menos pontos de falha
+- **Boas práticas:** Seguindo padrão de 12-factor app (configuração via ambiente)
 
 ## Arquivos Modificados
 
-- `frontend/.env.production` (criado)
-- `frontend/.env.development` (criado)
-- `frontend/config.ts` (modificado - adicionada lógica de switch)
-- `backend/auth/auth.ts` (verificado - já usa secrets corretamente)
-- `CLERK_KEYS_DOCUMENTATION.md` (criado)
+- `frontend/config.ts` (modificado - adicionada validação estrita, removida lógica de switching)
+- `frontend/App.tsx` (modificado - removida DiagnosticView e condicional de chave vazia)
+- `CLERK_KEYS_DOCUMENTATION.md` (atualizado - reflete nova abordagem)
 
 ## Manutenção
 
 ### Atualização de Chaves
 
 **Frontend:**
-1. Edite `frontend/.env.production` ou `frontend/.env.development`
+1. Atualize a variável de ambiente `VITE_CLERK_PUBLISHABLE_KEY` no ambiente de deploy
 2. Rebuild a aplicação
 
 **Backend:**
@@ -208,8 +252,10 @@ Para configurar o `ClerkSecretKey` no backend:
 
 ### Adição de Novos Ambientes
 
-Se precisar adicionar suporte para outro domínio:
+Para adicionar suporte para novo ambiente (ex: staging):
 
-1. Edite `frontend/config.ts`
-2. Atualize a regex `isProdHost` para incluir o novo domínio
-3. Adicione nova variável de ambiente se necessário
+1. Configure `VITE_CLERK_PUBLISHABLE_KEY` com a chave apropriada (pk_test_... ou pk_live_...)
+2. Configure `ClerkSecretKey` no backend (via Leap Settings)
+3. Deploy a aplicação
+
+**Não é necessário modificar código** - a configuração é totalmente baseada em variáveis de ambiente.
