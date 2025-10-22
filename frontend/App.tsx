@@ -24,6 +24,7 @@ import { config } from './config';
 
 const DISABLE_AUTH = config.disableAuth;
 const PUBLISHABLE_KEY = config.clerk.publishableKey;
+const FRONTEND_API = config.clerk.frontendApi;
 
 console.log('🚀 NEW BUILD DEPLOYED - timestamp:', Date.now());
 
@@ -208,6 +209,7 @@ function AppWithAuth() {
   return (
     <ClerkProvider
       publishableKey={PUBLISHABLE_KEY}
+      {...(FRONTEND_API ? { frontendApi: FRONTEND_API } : {})}
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
     >
