@@ -8,18 +8,32 @@ Os ambientes de preview, staging e produção estão apresentando tela em branco
 
 ## 📋 Variáveis de Ambiente Necessárias
 
-### 🔑 Secrets do Backend (via Encore)
+### ⚠️ IMPORTANTE: Diferença entre Secrets e Environment Variables no Encore
 
-Estes são gerenciados pelo Encore e usados no backend:
+O Encore tem **duas seções diferentes** para configuração:
+
+1. **Secrets** → Para RUNTIME (código do backend em execução)
+   - Exemplo: `ClerkSecretKey`
+   - Configurado em: Encore → Settings → **Secrets**
+
+2. **Environment Variables** → Para BUILD TIME (durante o build do frontend)
+   - Exemplo: `VITE_*`
+   - Configurado em: Encore → Settings → **Environment Variables**
+
+### 🔑 Secrets do Backend (RUNTIME - via Encore Secrets)
+
+Estes são usados pelo backend em execução:
 
 ```bash
 ClerkSecretKey      # sk_test_... para dev/staging, sk_live_... para produção
 DevAuthBypass       # "1" apenas para desenvolvimento local (opcional)
 ```
 
-### 🌐 Environment Variables do Frontend (build time)
+**Onde configurar**: Encore Dashboard → Settings → **Secrets**
 
-Estas variáveis são usadas durante o **build do frontend** e precisam estar disponíveis no ambiente de build:
+### 🌐 Environment Variables do Frontend (BUILD TIME - via Encore Environment Variables)
+
+Estas variáveis são injetadas durante o **build do frontend** (quando `vite build` executa):
 
 **Para Desenvolvimento/Staging/Preview:**
 ```bash
@@ -35,59 +49,69 @@ VITE_CLERK_FRONTEND_API_LIVE=clerk.magik.tools  # Domínio customizado
 VITE_CLIENT_TARGET=/                             # Backend na mesma origem
 ```
 
-## 🚀 Como Configurar (Leap + Encore)
+## 🚀 Como Configurar (Encore)
 
-### Fluxo Correto de Configuração
+### ⚠️ ATENÇÃO: Configuração Correta
 
-O Leap e Encore trabalham juntos da seguinte forma:
+**NÃO use Leap Secrets** para as variáveis `VITE_*`. Configure diretamente no **Encore**.
 
-1. **Leap**: Você adiciona secrets no painel do Leap
-2. **Sincronização Automática**: Os secrets são automaticamente criados no Encore
-3. **Encore**: Você gerencia em quais ambientes cada secret deve atuar e seus valores específicos
+### Por quê?
 
-### Passo a Passo
+O script de build do backend executa:
+```bash
+cd ../frontend && bun install && vite build
+```
 
-#### 1. Adicionar Secrets no Leap
+Durante esse build, o Vite precisa das variáveis `VITE_*` como **environment variables**, não como secrets em runtime.
 
-1. Acesse o painel do **Leap**
-2. Vá em **Settings → Secrets** (ou seção equivalente)
-3. Adicione os seguintes secrets:
-   - `VITE_CLERK_PUBLISHABLE_KEY_TEST`
-   - `VITE_CLERK_FRONTEND_API_TEST`
-   - `VITE_CLERK_PUBLISHABLE_KEY_LIVE`
-   - `VITE_CLERK_FRONTEND_API_LIVE`
-   - `VITE_CLIENT_TARGET`
-   - `ClerkSecretKey`
+### Passo a Passo Correto
 
-**Nota**: Ao adicionar no Leap, eles aparecerão automaticamente no Encore.
-
-#### 2. Configurar no Encore (Gerenciamento por Ambiente)
+#### 1. Configurar Environment Variables no Encore (BUILD TIME)
 
 1. Acesse o painel do **Encore**
-2. Vá em **Settings → Secrets**
-3. Para **cada secret** criado, configure os valores por ambiente:
+2. Vá em **Settings → Environment Variables** (NÃO "Secrets")
+3. Adicione as seguintes variáveis:
 
-**Para ambientes de Development/Preview/Staging:**
+**Para ambientes Preview/Staging/Development:**
+- Marque os checkboxes: ✅ Preview, ✅ Staging, ✅ Development
+- Adicione:
+  ```
+  VITE_CLERK_PUBLISHABLE_KEY_TEST → pk_test_c2xlcmsubWFnaWsudG9vbHMk...
+  VITE_CLERK_FRONTEND_API_TEST    → correct-seal-12.clerk.accounts.dev
+  VITE_CLIENT_TARGET              → /
+  ```
+
+**Para ambiente Production:**
+- Marque o checkbox: ✅ Production
+- Adicione:
+  ```
+  VITE_CLERK_PUBLISHABLE_KEY_LIVE → pk_live_Y2xlcmsubWFnaWsudG9vbHMk...
+  VITE_CLERK_FRONTEND_API_LIVE    → clerk.magik.tools
+  VITE_CLIENT_TARGET              → /
+  ```
+
+#### 2. Configurar Secrets no Encore (RUNTIME)
+
+1. Ainda no painel do **Encore**
+2. Vá em **Settings → Secrets** (agora sim!)
+3. Adicione apenas:
+
+**Para ambientes Preview/Staging/Development:**
 ```
-VITE_CLERK_PUBLISHABLE_KEY_TEST → pk_test_c2xlcmsubWFnaWsudG9vbHMk...
-VITE_CLERK_FRONTEND_API_TEST    → correct-seal-12.clerk.accounts.dev
-VITE_CLIENT_TARGET              → /
-ClerkSecretKey                  → sk_test_... (valor de teste)
+ClerkSecretKey → sk_test_... (chave secreta de teste)
 ```
 
-**Para ambiente de Production:**
+**Para ambiente Production:**
 ```
-VITE_CLERK_PUBLISHABLE_KEY_LIVE → pk_live_Y2xlcmsubWFnaWsudG9vbHMk...
-VITE_CLERK_FRONTEND_API_LIVE    → clerk.magik.tools
-VITE_CLIENT_TARGET              → /
-ClerkSecretKey                  → sk_live_... (valor de produção)
+ClerkSecretKey → sk_live_... (chave secreta de produção)
 ```
 
 #### 3. Fazer Deploy
 
-Após configurar todos os secrets no Encore:
-1. Faça um novo deploy no Leap
-2. O Encore pegará automaticamente os valores corretos para cada ambiente
+Após configurar:
+1. Faça um novo deploy no Leap ou trigger um rebuild no Encore
+2. O build do frontend terá acesso às variáveis `VITE_*`
+3. O backend em runtime terá acesso ao `ClerkSecretKey`
 
 ---
 
@@ -243,18 +267,20 @@ Se tudo estiver correto:
 ### TL;DR
 
 1. **Obtenha as chaves do Clerk** (dashboard.clerk.com)
-2. **Adicione secrets no Leap**:
-   - `VITE_CLERK_PUBLISHABLE_KEY_TEST`
-   - `VITE_CLERK_PUBLISHABLE_KEY_LIVE`
-   - `VITE_CLERK_FRONTEND_API_TEST`
-   - `VITE_CLERK_FRONTEND_API_LIVE`
-   - `VITE_CLIENT_TARGET`
-   - `ClerkSecretKey`
-3. **Configure valores no Encore** (os secrets já estarão lá, sincronizados do Leap):
-   - Para cada secret, defina valores específicos por ambiente
-   - Preview/Staging: use chaves `_TEST` e `sk_test_...`
-   - Produção: use chaves `_LIVE` e `sk_live_...`
-4. **Faça deploy no Leap**
+
+2. **No Encore → Environment Variables** (para build do frontend):
+   - `VITE_CLERK_PUBLISHABLE_KEY_TEST` (Preview/Staging/Dev)
+   - `VITE_CLERK_PUBLISHABLE_KEY_LIVE` (Production)
+   - `VITE_CLERK_FRONTEND_API_TEST` (Preview/Staging/Dev)
+   - `VITE_CLERK_FRONTEND_API_LIVE` (Production)
+   - `VITE_CLIENT_TARGET` (todos os ambientes → valor: `/`)
+
+3. **No Encore → Secrets** (para runtime do backend):
+   - `ClerkSecretKey` → `sk_test_...` (Preview/Staging/Dev)
+   - `ClerkSecretKey` → `sk_live_...` (Production)
+
+4. **Faça deploy/rebuild**
+
 5. **Verifique** o console do navegador para confirmar configuração
 
 ---
@@ -288,13 +314,24 @@ As seguintes correções foram feitas no código para melhorar a experiência de
 
 Antes de considerar o deployment completo, confirme:
 
-- [ ] Secrets adicionados no painel do Leap
-- [ ] Secrets sincronizados e configurados no Encore com valores por ambiente
-- [ ] Chaves do Clerk copiadas corretamente (pk_test, pk_live, sk_test, sk_live)
-- [ ] Frontend API configurado (*.clerk.accounts.dev para teste, clerk.magik.tools para prod)
-- [ ] VITE_CLIENT_TARGET configurado como `/`
-- [ ] Deploy feito no Leap após configurar secrets
+### No Encore Dashboard:
+
+- [ ] **Environment Variables** (build time) configuradas:
+  - [ ] `VITE_CLERK_PUBLISHABLE_KEY_TEST` em Preview/Staging/Dev
+  - [ ] `VITE_CLERK_PUBLISHABLE_KEY_LIVE` em Production
+  - [ ] `VITE_CLERK_FRONTEND_API_TEST` em Preview/Staging/Dev
+  - [ ] `VITE_CLERK_FRONTEND_API_LIVE` em Production
+  - [ ] `VITE_CLIENT_TARGET=/` em todos ambientes deployados
+
+- [ ] **Secrets** (runtime) configurados:
+  - [ ] `ClerkSecretKey` com `sk_test_...` em Preview/Staging/Dev
+  - [ ] `ClerkSecretKey` com `sk_live_...` em Production
+
+### Após Deploy:
+
+- [ ] Deploy/rebuild feito após configurar as variáveis
 - [ ] Console do navegador mostra `hasError: false`
+- [ ] Publishable key aparece no console (não `[NOT SET]`)
 - [ ] Login do Clerk funcionando
 - [ ] Backend validando tokens JWT corretamente
 
