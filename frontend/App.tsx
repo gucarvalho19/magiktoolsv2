@@ -25,8 +25,40 @@ import { config } from './config';
 const DISABLE_AUTH = config.disableAuth;
 const PUBLISHABLE_KEY = config.clerk.publishableKey;
 const FRONTEND_API = config.clerk.frontendApi;
+const CONFIG_ERROR = config.configError;
 
 console.log('🚀 NEW BUILD DEPLOYED - timestamp:', Date.now());
+
+// Componente de erro de configuração
+function ConfigErrorScreen({ error }: { error: string }) {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <div className="max-w-2xl w-full bg-red-50 dark:bg-red-900/20 border-2 border-red-500 rounded-lg p-6">
+        <h1 className="text-2xl font-bold text-red-700 dark:text-red-400 mb-4">
+          Erro de Configuração
+        </h1>
+        <div className="bg-white dark:bg-gray-800 rounded p-4 mb-4">
+          <pre className="text-sm text-red-600 dark:text-red-400 whitespace-pre-wrap font-mono">
+            {error}
+          </pre>
+        </div>
+        <div className="text-sm text-gray-700 dark:text-gray-300">
+          <p className="mb-2">
+            <strong>Para corrigir este problema:</strong>
+          </p>
+          <ol className="list-decimal list-inside space-y-1">
+            <li>Verifique as variáveis de ambiente no painel de deployment</li>
+            <li>Configure as chaves do Clerk corretamente</li>
+            <li>Faça um novo deployment após configurar as variáveis</li>
+          </ol>
+          <p className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+            Ambiente: {typeof window !== 'undefined' ? window.location.hostname : 'N/A'}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function ProtectedRoute({ children }: { children: any }) {
   if (DISABLE_AUTH) return <>{children}</>;
@@ -226,6 +258,15 @@ function AppWithAuth() {
 }
 
 export default function App() {
+  // Se houver erro de configuração, mostrar tela de erro
+  if (CONFIG_ERROR) {
+    return (
+      <ThemeProvider defaultTheme="light" storageKey="magiktools-theme">
+        <ConfigErrorScreen error={CONFIG_ERROR} />
+      </ThemeProvider>
+    );
+  }
+
   if (DISABLE_AUTH) {
     return (
       <ThemeProvider defaultTheme="light" storageKey="magiktools-theme">
