@@ -4,10 +4,6 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Client } from '../../client';
-
-// Initialize backend client with current origin
-const backend = new Client(window.location.origin);
 
 type SearchMethod = 'email' | 'orderId';
         
@@ -58,28 +54,42 @@ export default function MembershipLookup() {
     setNotFound(false);
     setError(null);
 
-try {
-  const params = searchMethod === 'email'
-    ? { email: searchValue.trim() }
-    : { orderId: searchValue.trim() };
+    try {
+      const body = searchMethod === 'email'
+        ? { email: searchValue.trim() }
+        : { orderId: searchValue.trim() };
 
-  // Use Encore client to call the backend
-  const data = await backend.hub.findMembership(params);
+      const response = await fetch('/memberships/find', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
 
-  if (data.found && data.membership) {
-    setResult(data.membership);
-    setNotFound(false);
-  } else {
-    setResult(null);
-    setNotFound(true);
-  }
-} catch (err: any) {
-  console.error('Search error:', err);
-  const errorMessage = err?.message || 'Erro ao buscar compra. Tente novamente.';
-  setError(errorMessage);
-} finally {
-  setLoading(false);
-}
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Acesso negado. Tente novamente mais tarde.');
+        }
+        throw new Error('Erro ao buscar compra. Tente novamente.');
+      }
+
+      const data = await response.json();
+
+      if (data.found && data.membership) {
+        setResult(data.membership);
+        setNotFound(false);
+      } else {
+        setResult(null);
+        setNotFound(true);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao buscar compra');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const copyClaimCode = async () => {
     if (result?.claimCode) {
