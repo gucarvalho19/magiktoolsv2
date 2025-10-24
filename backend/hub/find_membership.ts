@@ -73,12 +73,23 @@ export const findMembership = api<FindMembershipRequest, FindMembershipResponse>
     }
 
     // DEBUG: Count total memberships in database
-    const countResult = await db.queryRow`SELECT COUNT(*) as total FROM memberships`;
-    console.log('[findMembership] Total memberships in DB:', countResult?.total);
+    let totalCount = 0;
+    let sampleEmails: string[] = [];
 
-    // DEBUG: List all emails in database
-    const allEmails = await db.query`SELECT id, email, kiwify_order_id FROM memberships LIMIT 10`;
-    console.log('[findMembership] Sample emails in DB:', allEmails);
+    try {
+      const countResult = await db.queryRow<{ total: number }>`SELECT COUNT(*)::int as total FROM memberships`;
+      totalCount = countResult?.total || 0;
+      console.log('[findMembership] Total memberships in DB:', totalCount);
+
+      // DEBUG: List all emails in database
+      const allEmails = await db.query<{ id: number; email: string; kiwify_order_id: string | null }>`
+        SELECT id, email, kiwify_order_id FROM memberships LIMIT 10
+      `;
+      sampleEmails = allEmails.map(e => e.email);
+      console.log('[findMembership] Sample emails in DB:', sampleEmails);
+    } catch (debugError) {
+      console.error('[findMembership] Debug query error:', debugError);
+    }
 
     let membership: {
       id: number;
@@ -126,12 +137,12 @@ export const findMembership = api<FindMembershipRequest, FindMembershipResponse>
         found: false,
         // @ts-ignore - temporary debug info
         _debug: {
-          totalInDb: countResult?.total,
+          totalInDb: totalCount,
           searchedEmail: req.email?.toLowerCase().trim(),
           searchedOrderId: req.orderId?.trim(),
-          sampleEmails: allEmails.map(e => e.email)
+          sampleEmails: sampleEmails
         }
-      };
+      } as any;
     }
 
     const isClaimed = !!membership.user_id;
