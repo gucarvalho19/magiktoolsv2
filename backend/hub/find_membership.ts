@@ -18,6 +18,12 @@ interface MembershipInfo {
 interface FindMembershipResponse {
   found: boolean;
   membership?: MembershipInfo;
+  _debug?: {
+    totalInDb: number;
+    searchedEmail?: string;
+    searchedOrderId?: string;
+    sampleEmails: string[];
+  };
 }
 
 // DEBUG ENDPOINT - TEMPORARY
@@ -135,14 +141,13 @@ export const findMembership = api<FindMembershipRequest, FindMembershipResponse>
       // DEBUG: Return additional info in production
       return {
         found: false,
-        // @ts-ignore - temporary debug info
         _debug: {
           totalInDb: totalCount,
           searchedEmail: req.email?.toLowerCase().trim(),
           searchedOrderId: req.orderId?.trim(),
           sampleEmails: sampleEmails
         }
-      } as any;
+      };
     }
 
     const isClaimed = !!membership.user_id;
