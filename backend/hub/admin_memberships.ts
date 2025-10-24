@@ -5,11 +5,10 @@ import log from "encore.dev/log";
 import { promoteNextInWaitlist } from "./memberships/promote";
 import { createClerkClient } from "@clerk/backend";
 import { secret } from "encore.dev/config";
+import { isAdmin } from "./utils";
 
 const clerkSecretKey = secret("ClerkSecretKey");
 const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
-
-const ADMIN_EMAILS = ["admin@magiktools.com", "dev@local"];
 
 interface MembershipStats {
   active: number;
@@ -29,6 +28,9 @@ interface MembershipListItem {
   status: string;
   purchased_at: Date;
   activated_at: Date | null;
+  claim_code: string | null;
+  claim_code_used_at: Date | null;
+  customer_cpf: string | null;
 }
 
 interface AdminMembershipsResponse {
@@ -41,7 +43,7 @@ export const adminMemberships = api<void, AdminMembershipsResponse>(
   async () => {
     const auth = getAuthData();
 
-    if (!auth || !auth.email || !ADMIN_EMAILS.includes(auth.email)) {
+    if (!auth || !await isAdmin(auth.userID)) {
       throw APIError.permissionDenied("admin access required");
     }
 
@@ -64,7 +66,9 @@ export const adminMemberships = api<void, AdminMembershipsResponse>(
     `;
 
     const memberships = await db.queryAll<MembershipListItem>`
-      SELECT id, email, user_id, kiwify_order_id, status, purchased_at, activated_at
+      SELECT
+        id, email, user_id, kiwify_order_id, status,
+        purchased_at, activated_at, claim_code, claim_code_used_at, customer_cpf
       FROM memberships
       ORDER BY purchased_at DESC
       LIMIT 100
@@ -98,7 +102,7 @@ export const revokeMembership = api<RevokeMembershipRequest, RevokeMembershipRes
   async (req) => {
     const auth = getAuthData();
 
-    if (!auth || !auth.email || !ADMIN_EMAILS.includes(auth.email)) {
+    if (!auth || !await isAdmin(auth.userID)) {
       throw APIError.permissionDenied("admin access required");
     }
 
@@ -138,7 +142,7 @@ export const revokeMembership = api<RevokeMembershipRequest, RevokeMembershipRes
 
       log.info("Membership revogada por admin", {
         membershipId: req.membershipId,
-        adminEmail: auth.email,
+        adminUserId: auth.userID,
         wasActive
       });
 
@@ -164,17 +168,166 @@ export const adminPromoteNext = api<void, PromoteNextResponse>(
   async () => {
     const auth = getAuthData();
 
-    if (!auth || !auth.email || !ADMIN_EMAILS.includes(auth.email)) {
+    if (!auth || !await isAdmin(auth.userID)) {
       throw APIError.permissionDenied("admin access required");
     }
 
     const promoted = await promoteNextInWaitlist();
 
     log.info("Promoção manual da waitlist por admin", {
-      adminEmail: auth.email,
+      adminUserId: auth.userID,
       promoted
     });
 
     return { success: true, promoted };
+  }
+);
+
+interface LinkMembershipRequest {
+  membershipId: number;
+  clerkUserId: string;
+  reason?: string;
+}
+
+interface ClerkUserInfo {
+  id: string;
+  email?: string;
+  firstName?: string;
+  lastName?: string;
+}
+
+interface LinkMembershipResponse {
+  success: boolean;
+  membership: {
+    id: number;
+    email: string;
+    status: string;
+    orderId: string;
+  };
+  user: ClerkUserInfo;
+}
+
+/**
+ * Admin endpoint to manually link a membership to a Clerk user
+ * Useful when user uses different email for payment vs sign-up
+ */
+export const linkMembership = api<LinkMembershipRequest, LinkMembershipResponse>(
+  { method: "POST", path: "/_admin/memberships/link", expose: true, auth: true },
+  async (req) => {
+    const auth = getAuthData();
+
+    if (!auth || !await isAdmin(auth.userID)) {
+      throw APIError.permissionDenied("admin access required");
+    }
+
+    const tx = await db.begin();
+
+    try {
+      // Get membership
+      const membership = await tx.queryRow<{
+        id: number;
+        status: string;
+        email: string;
+        user_id: string | null;
+        kiwify_order_id: string;
+      }>`
+        SELECT id, status, email, user_id, kiwify_order_id
+        FROM memberships
+        WHERE id = ${req.membershipId}
+        FOR UPDATE
+      `;
+
+      if (!membership) {
+        await tx.rollback();
+        throw APIError.notFound("membership not found");
+      }
+
+      if (membership.user_id) {
+        await tx.rollback();
+        throw APIError.alreadyExists(
+          `membership already linked to user ${membership.user_id}`
+        );
+      }
+
+      // Verify Clerk user exists
+      const user = await clerkClient.users.getUser(req.clerkUserId);
+
+      // Check if user already has another membership
+      const existing = await tx.queryRow<{ id: number }>`
+        SELECT id FROM memberships WHERE user_id = ${req.clerkUserId}
+      `;
+
+      if (existing) {
+        await tx.rollback();
+        throw APIError.alreadyExists(
+          "user already has a membership linked"
+        );
+      }
+
+      // Link membership to user
+      await tx.exec`
+        UPDATE memberships
+        SET user_id = ${req.clerkUserId},
+            claim_code_used_at = NOW(),
+            updated_at = NOW()
+        WHERE id = ${req.membershipId}
+      `;
+
+      // Log admin action for audit
+      await tx.exec`
+        INSERT INTO admin_actions (
+          admin_user_id, action_type, target_membership_id,
+          target_user_id, reason, created_at
+        )
+        VALUES (
+          ${auth.userID},
+          'link_membership',
+          ${req.membershipId},
+          ${req.clerkUserId},
+          ${req.reason || 'manual link by admin'},
+          NOW()
+        )
+      `;
+
+      await tx.commit();
+
+      // Sync with Clerk
+      try {
+        await clerkClient.users.updateUserMetadata(req.clerkUserId, {
+          publicMetadata: { hubStatus: membership.status }
+        });
+      } catch (err) {
+        log.error("Falha ao atualizar Clerk metadata após link manual", {
+          userId: req.clerkUserId,
+          error: err
+        });
+      }
+
+      log.info("Admin vinculou membership manualmente", {
+        adminUserId: auth.userID,
+        membershipId: req.membershipId,
+        targetUserId: req.clerkUserId,
+        reason: req.reason
+      });
+
+      return {
+        success: true,
+        membership: {
+          id: membership.id,
+          email: membership.email,
+          status: membership.status,
+          orderId: membership.kiwify_order_id
+        },
+        user: {
+          id: user.id,
+          email: user.emailAddresses[0]?.emailAddress,
+          firstName: user.firstName || undefined,
+          lastName: user.lastName || undefined
+        }
+      };
+    } catch (err) {
+      await tx.rollback();
+      throw err;
+    }
   }
 );
