@@ -105,6 +105,7 @@ import {
     revokeMembership as api_hub_admin_memberships_revokeMembership
 } from "~backend/hub/admin_memberships";
 import { claim as api_hub_claim_claim } from "~backend/hub/claim";
+import { listAllMemberships as api_hub_debug_memberships_list_listAllMemberships } from "~backend/hub/debug_memberships_list";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
 import {
     debugListMemberships as api_hub_find_membership_debugListMemberships,
@@ -128,6 +129,7 @@ export namespace hub {
             this.generateResponse = this.generateResponse.bind(this)
             this.getMembership = this.getMembership.bind(this)
             this.linkMembership = this.linkMembership.bind(this)
+            this.listAllMemberships = this.listAllMemberships.bind(this)
             this.revokeMembership = this.revokeMembership.bind(this)
             this.webhookKiwify = this.webhookKiwify.bind(this)
             this.webhookKiwifyDebug = this.webhookKiwifyDebug.bind(this)
@@ -189,6 +191,15 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/_admin/memberships/link`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_linkMembership>
+        }
+
+        /**
+         * Temporary debug endpoint - PUBLIC for testing
+         */
+        public async listAllMemberships(): Promise<ResponseType<typeof api_hub_debug_memberships_list_listAllMemberships>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/debug/memberships`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_debug_memberships_list_listAllMemberships>
         }
 
         public async revokeMembership(params: { membershipId: number }): Promise<ResponseType<typeof api_hub_admin_memberships_revokeMembership>> {
