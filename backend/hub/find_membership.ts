@@ -72,6 +72,14 @@ export const findMembership = api<FindMembershipRequest, FindMembershipResponse>
       throw APIError.invalidArgument("either orderId or email is required");
     }
 
+    // DEBUG: Count total memberships in database
+    const countResult = await db.queryRow`SELECT COUNT(*) as total FROM memberships`;
+    console.log('[findMembership] Total memberships in DB:', countResult?.total);
+
+    // DEBUG: List all emails in database
+    const allEmails = await db.query`SELECT id, email, kiwify_order_id FROM memberships LIMIT 10`;
+    console.log('[findMembership] Sample emails in DB:', allEmails);
+
     let membership: {
       id: number;
       email: string;
@@ -113,7 +121,17 @@ export const findMembership = api<FindMembershipRequest, FindMembershipResponse>
 
     if (!membership) {
       console.log('[findMembership] No membership found, returning found: false');
-      return { found: false };
+      // DEBUG: Return additional info in production
+      return {
+        found: false,
+        // @ts-ignore - temporary debug info
+        _debug: {
+          totalInDb: countResult?.total,
+          searchedEmail: req.email?.toLowerCase().trim(),
+          searchedOrderId: req.orderId?.trim(),
+          sampleEmails: allEmails.map(e => e.email)
+        }
+      };
     }
 
     const isClaimed = !!membership.user_id;
