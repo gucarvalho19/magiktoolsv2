@@ -16,9 +16,43 @@ const HUB_CAP = 20;
 interface KiwifyWebhookPayload {
   webhook_event_type: string;
   order_id: string;
+  order_ref?: string;
   order_status?: string;
+  payment_method?: string;
+  store_id?: string;
+  approved_date?: string;
+  created_at?: string;
+  updated_at?: string;
+  product_type?: string;
+  subscription_id?: string;
+  Product?: {
+    product_id?: string;
+    product_name?: string;
+  };
   Customer?: {
+    full_name?: string;
+    first_name?: string;
     email?: string;
+    mobile?: string;
+    CPF?: string;
+    ip?: string;
+    country?: string;
+  };
+  Subscription?: {
+    start_date?: string;
+    next_payment?: string;
+    status?: string;
+    customer_access?: {
+      has_access?: boolean;
+      active_period?: boolean;
+      access_until?: string;
+    };
+    plan?: {
+      id?: string;
+      name?: string;
+      frequency?: string;
+      qty_charges?: number;
+    };
   };
   subscription_status?: string;
 }
@@ -47,9 +81,9 @@ export const webhookKiwify = api.raw(
 
       if (!signature || signature !== calcSignature) {
         log.warn("Assinatura inválida do webhook Kiwify", { signature, calcSignature });
-        res.statusCode = 200;
+        res.statusCode = 400;
         res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ status: "ok" }));
+        res.end(JSON.stringify({ error: "Incorrect signature" }));
         return;
       }
 
@@ -57,6 +91,23 @@ export const webhookKiwify = api.raw(
       const eventType = payload.webhook_event_type;
       const orderId = payload.order_id;
       const email = payload.Customer?.email ?? "";
+
+      // Validação de campos obrigatórios
+      if (!eventType) {
+        log.error("Webhook sem webhook_event_type", { payload });
+        res.statusCode = 400;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ error: "Missing webhook_event_type" }));
+        return;
+      }
+
+      if (!orderId) {
+        log.error("Webhook sem order_id", { eventType, payload });
+        res.statusCode = 400;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ error: "Missing order_id" }));
+        return;
+      }
 
       log.info("Webhook Kiwify recebido", {
         eventType,
@@ -68,6 +119,10 @@ export const webhookKiwify = api.raw(
       switch (eventType) {
         case "order_approved":
           await handleOrderApproved(orderId, email, payload);
+          break;
+
+        case "order_rejected":
+          await handleOrderRejected(orderId, email, payload);
           break;
 
         case "subscription_renewed":
@@ -161,6 +216,17 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
   }
 }
 
+async function handleOrderRejected(orderId: string, email: string, payload: KiwifyWebhookPayload) {
+  log.info("Pedido recusado", {
+    orderId,
+    email,
+    orderStatus: payload.order_status,
+    paymentMethod: payload.payment_method
+  });
+  // Não criamos registro na tabela memberships para pedidos recusados
+  // Apenas registramos o evento para auditoria
+}
+
 async function handleSubscriptionRenewed(orderId: string) {
   const tx = await db.begin();
 
@@ -226,14 +292,44 @@ async function handleSubscriptionRenewed(orderId: string) {
 }
 
 async function handleSubscriptionLate(orderId: string) {
-  await db.exec`
-    UPDATE memberships
-    SET status = 'past_due',
-        updated_at = NOW()
-    WHERE kiwify_order_id = ${orderId}
-  `;
+  const tx = await db.begin();
 
-  log.info("Assinatura marcada como past_due", { orderId });
+  try {
+    const membership = await tx.queryRow<{ id: number; status: string; user_id: string | null }>`
+      SELECT id, status, user_id FROM memberships WHERE kiwify_order_id = ${orderId} FOR UPDATE
+    `;
+
+    if (!membership) {
+      await tx.rollback();
+      log.warn("Assinatura atrasada para pedido inexistente", { orderId });
+      return;
+    }
+
+    await tx.exec`
+      UPDATE memberships
+      SET status = 'past_due',
+          updated_at = NOW()
+      WHERE id = ${membership.id}
+    `;
+
+    await tx.commit();
+
+    if (membership.user_id) {
+      try {
+        await clerkClient.users.updateUserMetadata(membership.user_id, {
+          publicMetadata: { hubStatus: 'past_due' }
+        });
+      } catch (err) {
+        log.error("Falha ao atualizar Clerk metadata após subscription_late", { userId: membership.user_id, error: err });
+      }
+    }
+
+    log.info("Assinatura marcada como past_due", { orderId, membershipId: membership.id });
+  } catch (err) {
+    await tx.rollback();
+    log.error("Erro ao processar subscription_late", { orderId, error: err });
+    throw err;
+  }
 }
 
 async function handleSubscriptionCanceled(orderId: string) {
