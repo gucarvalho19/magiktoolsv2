@@ -4,6 +4,10 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import { Client } from '../../client';
+
+// Initialize backend client with current origin
+const backend = new Client(window.location.origin);
 
 type SearchMethod = 'email' | 'orderId';
         
@@ -55,26 +59,12 @@ export default function MembershipLookup() {
     setError(null);
 
     try {
-      const body = searchMethod === 'email'
+      const params = searchMethod === 'email'
         ? { email: searchValue.trim() }
         : { orderId: searchValue.trim() };
 
-      const response = await fetch('/memberships/find', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('Acesso negado. Tente novamente mais tarde.');
-        }
-        throw new Error('Erro ao buscar compra. Tente novamente.');
-      }
-
-      const data = await response.json();
+      // Use Encore client to call the backend
+      const data = await backend.hub.findMembership(params);
 
       if (data.found && data.membership) {
         setResult(data.membership);
@@ -83,9 +73,10 @@ export default function MembershipLookup() {
         setResult(null);
         setNotFound(true);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Search error:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao buscar compra');
+      const errorMessage = err?.message || 'Erro ao buscar compra. Tente novamente.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
