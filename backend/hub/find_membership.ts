@@ -20,6 +20,43 @@ interface FindMembershipResponse {
   membership?: MembershipInfo;
 }
 
+// DEBUG ENDPOINT - TEMPORARY
+interface DebugListResponse {
+  total: number;
+  memberships: Array<{
+    id: number;
+    email: string;
+    kiwify_order_id: string | null;
+    claim_code: string | null;
+    user_id: string | null;
+    status: string;
+  }>;
+}
+
+export const debugListMemberships = api<void, DebugListResponse>(
+  { method: "GET", path: "/memberships/debug/list", expose: true, auth: false },
+  async () => {
+    const memberships = await db.query`
+      SELECT id, email, kiwify_order_id, claim_code, user_id, status, created_at
+      FROM memberships
+      ORDER BY created_at DESC
+      LIMIT 20
+    `;
+
+    return {
+      total: memberships.length,
+      memberships: memberships.map(m => ({
+        id: m.id,
+        email: m.email,
+        kiwify_order_id: m.kiwify_order_id,
+        claim_code: m.claim_code,
+        user_id: m.user_id,
+        status: m.status
+      }))
+    };
+  }
+);
+
 /**
  * Find a membership by order ID or email
  * Public endpoint - does not require authentication
