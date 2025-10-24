@@ -60,8 +60,14 @@ export default function MembershipLookup() {
         ? { email: searchValue.trim() }
         : { orderId: searchValue.trim() };
 
+      console.log('[MembershipLookup] Searching with params:', params);
+      console.log('[MembershipLookup] Backend client:', backend);
+      console.log('[MembershipLookup] Has findMembership method:', typeof backend.hub.findMembership);
+
       // Call backend API using Encore client
       const data = await backend.hub.findMembership(params);
+
+      console.log('[MembershipLookup] Response data:', data);
 
       if (data.found && data.membership) {
         setResult(data.membership);
@@ -71,7 +77,13 @@ export default function MembershipLookup() {
         setNotFound(true);
       }
     } catch (err: any) {
-      console.error('Search error:', err);
+      console.error('[MembershipLookup] Search error:', err);
+      console.error('[MembershipLookup] Error details:', {
+        message: err?.message,
+        status: err?.status,
+        code: err?.code,
+        details: err?.details
+      });
       const errorMessage = err?.message || 'Erro ao buscar compra. Tente novamente.';
       setError(errorMessage);
     } finally {
