@@ -101,10 +101,12 @@ export namespace auth {
 import {
     adminMemberships as api_hub_admin_memberships_adminMemberships,
     adminPromoteNext as api_hub_admin_memberships_adminPromoteNext,
+    linkMembership as api_hub_admin_memberships_linkMembership,
     revokeMembership as api_hub_admin_memberships_revokeMembership
 } from "~backend/hub/admin_memberships";
 import { claim as api_hub_claim_claim } from "~backend/hub/claim";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
+import { findMembership as api_hub_find_membership_findMembership } from "~backend/hub/find_membership";
 import { getMembership as api_hub_me_membership_getMembership } from "~backend/hub/me_membership";
 import { generateResponse as api_hub_openai_generateResponse } from "~backend/hub/openai";
 
@@ -118,8 +120,10 @@ export namespace hub {
             this.adminMemberships = this.adminMemberships.bind(this)
             this.adminPromoteNext = this.adminPromoteNext.bind(this)
             this.claim = this.claim.bind(this)
+            this.findMembership = this.findMembership.bind(this)
             this.generateResponse = this.generateResponse.bind(this)
             this.getMembership = this.getMembership.bind(this)
+            this.linkMembership = this.linkMembership.bind(this)
             this.revokeMembership = this.revokeMembership.bind(this)
             this.webhookKiwify = this.webhookKiwify.bind(this)
             this.webhookKiwifyDebug = this.webhookKiwifyDebug.bind(this)
@@ -144,6 +148,17 @@ export namespace hub {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_claim_claim>
         }
 
+        /**
+         * Find a membership by order ID or email
+         * Public endpoint - does not require authentication
+         * Only shows claim code if membership is not yet claimed
+         */
+        public async findMembership(params: RequestType<typeof api_hub_find_membership_findMembership>): Promise<ResponseType<typeof api_hub_find_membership_findMembership>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/memberships/find`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_find_membership_findMembership>
+        }
+
         public async generateResponse(params: RequestType<typeof api_hub_openai_generateResponse>): Promise<ResponseType<typeof api_hub_openai_generateResponse>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/openai/generate`, {method: "POST", body: JSON.stringify(params)})
@@ -154,6 +169,16 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/me/membership`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_me_membership_getMembership>
+        }
+
+        /**
+         * Admin endpoint to manually link a membership to a Clerk user
+         * Useful when user uses different email for payment vs sign-up
+         */
+        public async linkMembership(params: RequestType<typeof api_hub_admin_memberships_linkMembership>): Promise<ResponseType<typeof api_hub_admin_memberships_linkMembership>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/_admin/memberships/link`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_linkMembership>
         }
 
         public async revokeMembership(params: { membershipId: number }): Promise<ResponseType<typeof api_hub_admin_memberships_revokeMembership>> {

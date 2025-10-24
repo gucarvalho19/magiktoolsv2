@@ -6,7 +6,8 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 type SearchMethod = 'email' | 'orderId';
-
+backend.hub.findMembership()
+        
 interface MembershipResult {
   id: number;
   email: string;
