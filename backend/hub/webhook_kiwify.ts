@@ -1,6 +1,6 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import { createHmac } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 import db from "../db";
 import log from "encore.dev/log";
 import { promoteNextInWaitlist } from "./memberships/promote";
@@ -12,6 +12,14 @@ const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
 const kiwifySecret = secret("KiwifySecret");
 const debug = process.env.DEBUG_KIWIFY_WEBHOOK === "true";
 const HUB_CAP = 20;
+
+/**
+ * Generates a unique claim code in format: MAGIK-XXXX-YYYY
+ */
+function generateClaimCode(): string {
+  const code = randomBytes(6).toString('hex').toUpperCase();
+  return `MAGIK-${code.slice(0, 4)}-${code.slice(4, 8)}`;
+}
 
 interface KiwifyOrderData {
   webhook_event_type: string;
@@ -249,12 +257,28 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     const hasVacancy = count < HUB_CAP;
     const status = hasVacancy ? 'active' : 'waitlisted';
 
+    // Generate unique claim code
+    const claimCode = generateClaimCode();
+
+    // Extract CPF if available (remove formatting)
+    const cpf = payload.Customer?.CPF?.replace(/\D/g, '') || null;
+
     const result = await tx.queryRow<{ id: number }>`
-      INSERT INTO memberships (email, kiwify_order_id, status, activated_at, purchased_at)
+      INSERT INTO memberships (
+        email,
+        kiwify_order_id,
+        status,
+        claim_code,
+        customer_cpf,
+        activated_at,
+        purchased_at
+      )
       VALUES (
         ${email},
         ${orderId},
         ${status},
+        ${claimCode},
+        ${cpf},
         CASE WHEN ${hasVacancy} THEN NOW() ELSE NULL END,
         NOW()
       )
@@ -267,10 +291,15 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
       orderId,
       email,
       status,
+      claimCode,
+      cpf: cpf ? '***' : null,
       activeCount: count,
       cap: HUB_CAP,
       membershipId: result?.id
     });
+
+    // TODO: Send email with claim code
+    // await sendClaimCodeEmail(email, claimCode, status);
   } catch (err) {
     await tx.rollback();
     log.error("Erro ao processar order_approved", { orderId, error: err });
