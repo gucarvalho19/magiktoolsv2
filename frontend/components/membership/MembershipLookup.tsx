@@ -6,7 +6,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 
 type SearchMethod = 'email' | 'orderId';
-
+        
 interface MembershipResult {
   id: number;
   email: string;
