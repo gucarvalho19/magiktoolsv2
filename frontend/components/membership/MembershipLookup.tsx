@@ -4,10 +4,7 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Client } from '../../client';
-
-// Initialize backend client with current origin
-const backend = new Client(window.location.origin);
+import backend from '../../client';
 
 type SearchMethod = 'email' | 'orderId';
         
@@ -63,7 +60,7 @@ export default function MembershipLookup() {
         ? { email: searchValue.trim() }
         : { orderId: searchValue.trim() };
 
-      // Use Encore client to call the backend
+      // Call backend API using Encore client
       const data = await backend.hub.findMembership(params);
 
       if (data.found && data.membership) {
