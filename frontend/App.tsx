@@ -18,6 +18,7 @@ import MarqueeGenerator from './components/tools/MarqueeGenerator';
 import CookieMarker from './components/tools/CookieMarker';
 import SalesNotification from './components/tools/SalesNotification';
 import MembershipGate from './components/membership/MembershipGate';
+import MembershipLookup from './components/membership/MembershipLookup';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import { config } from './config';
@@ -96,6 +97,7 @@ function AppContent() {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1">
         <Routes>
+          <Route path="/membership/lookup" element={<MembershipLookup />} />
           <Route
             path="/dashboard"
             element={
@@ -274,6 +276,7 @@ export default function App() {
           <Routes>
             <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos-de-uso" element={<TermsOfService />} />
+            <Route path="/membership/lookup" element={<MembershipLookup />} />
             <Route path="/*" element={<AppContent />} />
           </Routes>
         </Router>
