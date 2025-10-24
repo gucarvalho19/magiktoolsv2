@@ -190,12 +190,18 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     `;
 
     const count = activeCount?.count ?? 0;
-    const status = count < HUB_CAP ? 'active' : 'waitlisted';
-    const activatedAt = count < HUB_CAP ? 'NOW()' : null;
+    const hasVacancy = count < HUB_CAP;
+    const status = hasVacancy ? 'active' : 'waitlisted';
 
     const result = await tx.queryRow<{ id: number }>`
       INSERT INTO memberships (email, kiwify_order_id, status, activated_at, purchased_at)
-      VALUES (${email}, ${orderId}, ${status}, ${activatedAt}, NOW())
+      VALUES (
+        ${email},
+        ${orderId},
+        ${status},
+        CASE WHEN ${hasVacancy} THEN NOW() ELSE NULL END,
+        NOW()
+      )
       RETURNING id
     `;
 
