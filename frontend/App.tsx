@@ -290,6 +290,7 @@ export default function App() {
         <Routes>
           <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
           <Route path="/termos-de-uso" element={<TermsOfService />} />
+          <Route path="/membership/lookup" element={<MembershipLookup />} />
           <Route path="/*" element={<AppWithAuth />} />
         </Routes>
       </Router>
