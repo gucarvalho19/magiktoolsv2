@@ -13,9 +13,59 @@ const kiwifySecret = secret("KiwifySecret");
 const debug = process.env.DEBUG_KIWIFY_WEBHOOK === "true";
 const HUB_CAP = 20;
 
-interface KiwifyWebhookPayload {
+interface KiwifyOrderData {
   webhook_event_type: string;
   order_id: string;
+  order_ref?: string;
+  order_status?: string;
+  payment_method?: string;
+  store_id?: string;
+  approved_date?: string;
+  created_at?: string;
+  updated_at?: string;
+  product_type?: string;
+  subscription_id?: string;
+  Product?: {
+    product_id?: string;
+    product_name?: string;
+  };
+  Customer?: {
+    full_name?: string;
+    first_name?: string;
+    email?: string;
+    mobile?: string;
+    CPF?: string;
+    ip?: string;
+    country?: string;
+  };
+  Subscription?: {
+    start_date?: string;
+    next_payment?: string;
+    status?: string;
+    customer_access?: {
+      has_access?: boolean;
+      active_period?: boolean;
+      access_until?: string;
+    };
+    plan?: {
+      id?: string;
+      name?: string;
+      frequency?: string;
+      qty_charges?: number;
+    };
+  };
+  subscription_status?: string;
+}
+
+interface KiwifyWebhookPayload {
+  // Formato com wrapper (formato real enviado pela Kiwify)
+  url?: string;
+  signature?: string;
+  order?: KiwifyOrderData;
+
+  // Formato direto (formato da documentação, mantido para compatibilidade)
+  webhook_event_type?: string;
+  order_id?: string;
   order_ref?: string;
   order_status?: string;
   payment_method?: string;
@@ -88,9 +138,15 @@ export const webhookKiwify = api.raw(
       }
 
       const payload: KiwifyWebhookPayload = JSON.parse(rawBody);
-      const eventType = payload.webhook_event_type;
-      const orderId = payload.order_id;
-      const email = payload.Customer?.email ?? "";
+
+      // Extrair dados do formato correto (wrapper.order ou direto no root)
+      const orderData: KiwifyOrderData = payload.order
+        ? payload.order
+        : payload as KiwifyOrderData;
+
+      const eventType = orderData.webhook_event_type;
+      const orderId = orderData.order_id;
+      const email = orderData.Customer?.email ?? "";
 
       // Validação de campos obrigatórios
       if (!eventType) {
@@ -112,17 +168,17 @@ export const webhookKiwify = api.raw(
       log.info("Webhook Kiwify recebido", {
         eventType,
         orderId,
-        orderStatus: payload.order_status,
+        orderStatus: orderData.order_status,
         email,
       });
 
       switch (eventType) {
         case "order_approved":
-          await handleOrderApproved(orderId, email, payload);
+          await handleOrderApproved(orderId, email, orderData);
           break;
 
         case "order_rejected":
-          await handleOrderRejected(orderId, email, payload);
+          await handleOrderRejected(orderId, email, orderData);
           break;
 
         case "subscription_renewed":
@@ -166,7 +222,7 @@ export const webhookKiwify = api.raw(
   }
 );
 
-async function handleOrderApproved(orderId: string, email: string, payload: KiwifyWebhookPayload) {
+async function handleOrderApproved(orderId: string, email: string, payload: KiwifyOrderData) {
   if (payload.order_status !== 'paid') {
     log.info("order_approved mas order_status != paid, ignorando", { orderId, orderStatus: payload.order_status });
     return;
@@ -222,7 +278,7 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
   }
 }
 
-async function handleOrderRejected(orderId: string, email: string, payload: KiwifyWebhookPayload) {
+async function handleOrderRejected(orderId: string, email: string, payload: KiwifyOrderData) {
   log.info("Pedido recusado", {
     orderId,
     email,
