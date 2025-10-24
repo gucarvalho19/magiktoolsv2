@@ -106,7 +106,10 @@ import {
 } from "~backend/hub/admin_memberships";
 import { claim as api_hub_claim_claim } from "~backend/hub/claim";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
-import { findMembership as api_hub_find_membership_findMembership } from "~backend/hub/find_membership";
+import {
+    debugListMemberships as api_hub_find_membership_debugListMemberships,
+    findMembership as api_hub_find_membership_findMembership
+} from "~backend/hub/find_membership";
 import { getMembership as api_hub_me_membership_getMembership } from "~backend/hub/me_membership";
 import { generateResponse as api_hub_openai_generateResponse } from "~backend/hub/openai";
 
@@ -120,6 +123,7 @@ export namespace hub {
             this.adminMemberships = this.adminMemberships.bind(this)
             this.adminPromoteNext = this.adminPromoteNext.bind(this)
             this.claim = this.claim.bind(this)
+            this.debugListMemberships = this.debugListMemberships.bind(this)
             this.findMembership = this.findMembership.bind(this)
             this.generateResponse = this.generateResponse.bind(this)
             this.getMembership = this.getMembership.bind(this)
@@ -146,6 +150,12 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/claim`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_claim_claim>
+        }
+
+        public async debugListMemberships(): Promise<ResponseType<typeof api_hub_find_membership_debugListMemberships>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/memberships/debug/list`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_find_membership_debugListMemberships>
         }
 
         /**
