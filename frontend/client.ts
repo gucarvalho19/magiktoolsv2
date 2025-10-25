@@ -105,6 +105,7 @@ import {
     revokeMembership as api_hub_admin_memberships_revokeMembership
 } from "~backend/hub/admin_memberships";
 import { claim as api_hub_claim_claim } from "~backend/hub/claim";
+import { insertTestData as api_hub_debug_insert_test_data_insertTestData } from "~backend/hub/debug_insert_test_data";
 import { listAllMemberships as api_hub_debug_memberships_list_listAllMemberships } from "~backend/hub/debug_memberships_list";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
 import {
@@ -128,6 +129,7 @@ export namespace hub {
             this.findMembership = this.findMembership.bind(this)
             this.generateResponse = this.generateResponse.bind(this)
             this.getMembership = this.getMembership.bind(this)
+            this.insertTestData = this.insertTestData.bind(this)
             this.linkMembership = this.linkMembership.bind(this)
             this.listAllMemberships = this.listAllMemberships.bind(this)
             this.revokeMembership = this.revokeMembership.bind(this)
@@ -181,6 +183,15 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/me/membership`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_me_membership_getMembership>
+        }
+
+        /**
+         * Temporary debug endpoint - Inserts test data into production database
+         */
+        public async insertTestData(): Promise<ResponseType<typeof api_hub_debug_insert_test_data_insertTestData>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/debug/insert-test-data`, {method: "POST", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_debug_insert_test_data_insertTestData>
         }
 
         /**
