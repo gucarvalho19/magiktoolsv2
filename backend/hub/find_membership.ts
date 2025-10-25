@@ -2,8 +2,9 @@ import { api, APIError } from "encore.dev/api";
 import db from "../db";
 
 interface FindMembershipRequest {
-  orderId?: string;
-  email?: string;
+  orderId?: string;      // Kiwify order ID (internal)
+  claimCode?: string;    // Kiwify order_ref (customer-facing code)
+  email?: string;        // Customer email
 }
 
 interface MembershipInfo {
@@ -74,8 +75,8 @@ export const findMembership = api<FindMembershipRequest, FindMembershipResponse>
     console.log('[findMembership] Request received:', req);
 
     // Validate input
-    if (!req.orderId && !req.email) {
-      throw APIError.invalidArgument("either orderId or email is required");
+    if (!req.orderId && !req.claimCode && !req.email) {
+      throw APIError.invalidArgument("orderId, claimCode, or email is required");
     }
 
     // DEBUG: Count total memberships in database
@@ -107,8 +108,18 @@ export const findMembership = api<FindMembershipRequest, FindMembershipResponse>
       claim_code_used_at: string | null;
     } | null = null;
 
-    // Search by order ID (most specific)
-    if (req.orderId) {
+    // Search by claim code (customer-facing code from Kiwify)
+    if (req.claimCode) {
+      const claimCodeUpper = req.claimCode.trim().toUpperCase();
+
+      membership = await db.queryRow`
+        SELECT id, email, status, purchased_at, user_id, claim_code, claim_code_used_at
+        FROM memberships
+        WHERE UPPER(claim_code) = ${claimCodeUpper}
+      `;
+    }
+    // Search by order ID (internal Kiwify order ID)
+    else if (req.orderId) {
       const orderIdTrim = req.orderId.trim();
       console.log('[findMembership] Searching by orderId:', orderIdTrim);
 

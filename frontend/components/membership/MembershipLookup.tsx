@@ -6,7 +6,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import backend from '../../client';
 
-type SearchMethod = 'email' | 'orderId';
+type SearchMethod = 'email' | 'claimCode';
         
 interface MembershipResult {
   id: number;
@@ -58,16 +58,10 @@ export default function MembershipLookup() {
     try {
       const params = searchMethod === 'email'
         ? { email: searchValue.trim() }
-        : { orderId: searchValue.trim() };
-
-      console.log('[MembershipLookup] Searching with params:', params);
-      console.log('[MembershipLookup] Backend client:', backend);
-      console.log('[MembershipLookup] Has findMembership method:', typeof backend.hub.findMembership);
+        : { claimCode: searchValue.trim() };
 
       // Call backend API using Encore client
       const data = await backend.hub.findMembership(params);
-
-      console.log('[MembershipLookup] Response data:', data);
 
       if (data.found && data.membership) {
         setResult(data.membership);
@@ -143,21 +137,21 @@ export default function MembershipLookup() {
             </button>
             <button
               type="button"
-              onClick={() => setSearchMethod('orderId')}
+              onClick={() => setSearchMethod('claimCode')}
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                searchMethod === 'orderId'
+                searchMethod === 'claimCode'
                   ? 'bg-background shadow-sm'
                   : 'hover:bg-background/50'
               }`}
             >
-              Buscar por ID do Pedido
+              Buscar por Código de Resgate
             </button>
           </div>
 
           {/* Input */}
           <div className="space-y-2">
             <Label htmlFor="search">
-              {searchMethod === 'email' ? 'E-mail usado na compra' : 'ID do Pedido'}
+              {searchMethod === 'email' ? 'E-mail usado na compra' : 'Código de Resgate'}
             </Label>
             <Input
               id="search"
@@ -165,7 +159,7 @@ export default function MembershipLookup() {
               placeholder={
                 searchMethod === 'email'
                   ? 'seu@email.com'
-                  : 'KIW-XXX...'
+                  : 'Ex: RzYJ79T'
               }
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
@@ -260,7 +254,7 @@ export default function MembershipLookup() {
               Nenhuma compra encontrada
             </h2>
             <p className="text-sm text-muted-foreground">
-              Não encontramos nenhum pedido com {searchMethod === 'email' ? 'este e-mail' : 'este ID'}.
+              Não encontramos nenhum pedido com {searchMethod === 'email' ? 'este e-mail' : 'este código de resgate'}.
             </p>
             <div className="text-sm space-y-1 text-muted-foreground">
               <p className="font-medium">Sugestões:</p>
@@ -268,7 +262,7 @@ export default function MembershipLookup() {
                 <li>Verifique se digitou corretamente</li>
                 <li>
                   Tente buscar pelo{' '}
-                  {searchMethod === 'email' ? 'ID do pedido' : 'e-mail'}
+                  {searchMethod === 'email' ? 'código de resgate' : 'e-mail'}
                 </li>
                 <li>Entre em contato com o suporte</li>
               </ul>
