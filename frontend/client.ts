@@ -105,6 +105,7 @@ import {
     revokeMembership as api_hub_admin_memberships_revokeMembership
 } from "~backend/hub/admin_memberships";
 import { claim as api_hub_claim_claim } from "~backend/hub/claim";
+import { checkClaimCode as api_hub_debug_check_claim_code_checkClaimCode } from "~backend/hub/debug_check_claim_code";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
 import {
     debugListMemberships as api_hub_find_membership_debugListMemberships,
@@ -122,6 +123,7 @@ export namespace hub {
             this.baseClient = baseClient
             this.adminMemberships = this.adminMemberships.bind(this)
             this.adminPromoteNext = this.adminPromoteNext.bind(this)
+            this.checkClaimCode = this.checkClaimCode.bind(this)
             this.claim = this.claim.bind(this)
             this.debugListMemberships = this.debugListMemberships.bind(this)
             this.findMembership = this.findMembership.bind(this)
@@ -144,6 +146,15 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/_admin/memberships/promote-next`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_adminPromoteNext>
+        }
+
+        /**
+         * Temporary debug endpoint to check what's in the database
+         */
+        public async checkClaimCode(params: RequestType<typeof api_hub_debug_check_claim_code_checkClaimCode>): Promise<ResponseType<typeof api_hub_debug_check_claim_code_checkClaimCode>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/debug/check-claim-code`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_debug_check_claim_code_checkClaimCode>
         }
 
         public async claim(params: RequestType<typeof api_hub_claim_claim>): Promise<ResponseType<typeof api_hub_claim_claim>> {
