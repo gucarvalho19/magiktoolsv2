@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react';
 import { ptBR } from '@clerk/localizations';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Dashboard from './components/dashboard/Dashboard';
@@ -71,9 +71,37 @@ function ProtectedRoute({ children }: { children: any }) {
         <MembershipGate>{children}</MembershipGate>
       </SignedIn>
       <SignedOut>
-        <RedirectToSignIn />
+        <Navigate to="/sign-in" replace />
       </SignedOut>
     </>
+  );
+}
+
+// Sign In Page Component
+function SignInPage() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <SignIn
+        routing="path"
+        path="/sign-in"
+        signUpUrl="/sign-up"
+        afterSignInUrl="/dashboard"
+      />
+    </div>
+  );
+}
+
+// Sign Up Page Component
+function SignUpPage() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <SignUp
+        routing="path"
+        path="/sign-up"
+        signInUrl="/sign-in"
+        afterSignUpUrl="/dashboard"
+      />
+    </div>
   );
 }
 
@@ -99,6 +127,8 @@ function AppContent() {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1">
         <Routes>
+          <Route path="/sign-in" element={<SignInPage />} />
+          <Route path="/sign-up" element={<SignUpPage />} />
           <Route
             path="/dashboard"
             element={
