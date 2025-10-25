@@ -144,14 +144,14 @@ export default function MembershipLookup() {
                   : 'hover:bg-background/50'
               }`}
             >
-              Buscar por Código de Resgate
+              Buscar por ID da Venda
             </button>
           </div>
 
           {/* Input */}
           <div className="space-y-2">
             <Label htmlFor="search">
-              {searchMethod === 'email' ? 'E-mail usado na compra' : 'Código de Resgate'}
+              {searchMethod === 'email' ? 'E-mail usado na compra' : 'ID da Venda'}
             </Label>
             <Input
               id="search"
@@ -159,7 +159,7 @@ export default function MembershipLookup() {
               placeholder={
                 searchMethod === 'email'
                   ? 'seu@email.com'
-                  : 'Ex: RzYJ79T'
+                  : 'Ex: 2a0NnH5'
               }
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
@@ -254,7 +254,7 @@ export default function MembershipLookup() {
               Nenhuma compra encontrada
             </h2>
             <p className="text-sm text-muted-foreground">
-              Não encontramos nenhum pedido com {searchMethod === 'email' ? 'este e-mail' : 'este código de resgate'}.
+              Não encontramos nenhum pedido com {searchMethod === 'email' ? 'este e-mail' : 'este ID da venda'}.
             </p>
             <div className="text-sm space-y-1 text-muted-foreground">
               <p className="font-medium">Sugestões:</p>
@@ -262,7 +262,7 @@ export default function MembershipLookup() {
                 <li>Verifique se digitou corretamente</li>
                 <li>
                   Tente buscar pelo{' '}
-                  {searchMethod === 'email' ? 'código de resgate' : 'e-mail'}
+                  {searchMethod === 'email' ? 'ID da venda' : 'e-mail'}
                 </li>
                 <li>Entre em contato com o suporte</li>
               </ul>
