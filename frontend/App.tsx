@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react';
+import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, useAuth, ClerkLoaded, ClerkLoading, ptBR } from '@clerk/clerk-react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Dashboard from './components/dashboard/Dashboard';
 import ToolLayout from './components/tools/ToolLayout';
@@ -246,6 +246,7 @@ function AppWithAuth() {
       {...(FRONTEND_API ? { frontendApi: FRONTEND_API } : {})}
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
+      localization={ptBR}
     >
       <ClerkLoaded>
         <AppContent />
