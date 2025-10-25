@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react';
+import { ptBR } from '@clerk/localizations';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Dashboard from './components/dashboard/Dashboard';
 import ToolLayout from './components/tools/ToolLayout';
@@ -30,77 +31,6 @@ const FRONTEND_API = config.clerk.frontendApi;
 const CONFIG_ERROR = config.configError;
 
 console.log('🚀 NEW BUILD DEPLOYED - timestamp:', Date.now());
-
-// Localização em Português do Brasil para Clerk
-const clerkLocalization = {
-  locale: 'pt-BR',
-  socialButtonsBlockButton: 'Continuar com {{provider|titleize}}',
-  dividerText: 'ou',
-  formFieldLabel__emailAddress: 'Endereço de e-mail',
-  formFieldLabel__emailAddresses: 'Endereços de e-mail',
-  formFieldLabel__password: 'Senha',
-  formFieldLabel__newPassword: 'Nova senha',
-  formFieldLabel__confirmPassword: 'Confirmar senha',
-  formFieldLabel__firstName: 'Nome',
-  formFieldLabel__lastName: 'Sobrenome',
-  formFieldLabel__username: 'Nome de usuário',
-  formFieldInputPlaceholder__emailAddress: 'exemplo@email.com',
-  formFieldInputPlaceholder__firstName: 'João',
-  formFieldInputPlaceholder__lastName: 'Silva',
-  formFieldInputPlaceholder__username: 'joaosilva',
-  formFieldError__notMatchingPasswords: 'As senhas não coincidem.',
-  formFieldError__matchingPasswords: 'As senhas coincidem.',
-  signIn: {
-    start: {
-      title: 'Entrar',
-      subtitle: 'para continuar no {{applicationName}}',
-      actionText: 'Não tem uma conta?',
-      actionLink: 'Criar conta',
-    },
-    password: {
-      title: 'Digite sua senha',
-      actionLink: 'Usar outro método',
-    },
-    forgotPasswordLink: 'Esqueceu a senha?',
-    alternativeMethods: {
-      title: 'Use outro método',
-      actionLink: 'Ver todas as opções',
-      blockButton__emailCode: 'Enviar código para {{identifier}}',
-      blockButton__emailLink: 'Enviar link para {{identifier}}',
-      blockButton__password: 'Entrar com sua senha',
-    },
-  },
-  signUp: {
-    start: {
-      title: 'Criar sua conta',
-      subtitle: 'para continuar no {{applicationName}}',
-      actionText: 'Já tem uma conta?',
-      actionLink: 'Entrar',
-    },
-    continue: {
-      title: 'Preencha os campos faltantes',
-      subtitle: 'para continuar no {{applicationName}}',
-      actionText: 'Já tem uma conta?',
-      actionLink: 'Entrar',
-    },
-  },
-  formButtonPrimary: 'Continuar',
-  formButtonPrimary__verify: 'Verificar',
-  footerActionLink__useAnotherMethod: 'Usar outro método',
-  backButton: 'Voltar',
-  badge__primary: 'Principal',
-  badge__unverified: 'Não verificado',
-  badge__userDevice: 'Dispositivo do usuário',
-  badge__you: 'Você',
-  userProfile: {
-    navbar: {
-      title: 'Perfil',
-      description: 'Gerencie as informações da sua conta',
-      account: 'Conta',
-      security: 'Segurança',
-    },
-  },
-};
 
 // Componente de erro de configuração
 function ConfigErrorScreen({ error }: { error: string }) {
@@ -317,7 +247,7 @@ function AppWithAuth() {
       {...(FRONTEND_API ? { frontendApi: FRONTEND_API } : {})}
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
-      localization={clerkLocalization}
+      localization={ptBR}
     >
       <ClerkLoaded>
         <AppContent />
