@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@clerk/clerk-react';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
@@ -37,6 +38,7 @@ const statusLabels = {
 
 export default function MembershipLookup() {
   const navigate = useNavigate();
+  const { isSignedIn } = useAuth();
   const [searchMethod, setSearchMethod] = useState<SearchMethod>('email');
   const [searchValue, setSearchValue] = useState('');
   const [loading, setLoading] = useState(false);
@@ -207,7 +209,7 @@ export default function MembershipLookup() {
               ) : result.claimCode ? (
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-xs">Seu código de resgate:</Label>
+                    <Label className="text-xs">Seu ID da Venda:</Label>
                     <div className="mt-2 flex gap-2">
                       <div className="flex-1 bg-muted border rounded-lg p-3 text-center">
                         <code className="text-lg font-mono font-bold">
@@ -225,13 +227,35 @@ export default function MembershipLookup() {
                     </div>
                   </div>
 
-                  <Button
-                    type="button"
-                    onClick={() => navigate('/dashboard')}
-                    className="w-full"
-                  >
-                    Resgatar Agora →
-                  </Button>
+                  {isSignedIn ? (
+                    <Button
+                      type="button"
+                      onClick={() => navigate(`/claim?code=${result.claimCode}`)}
+                      className="w-full"
+                    >
+                      Resgatar Agora →
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      <Button
+                        type="button"
+                        onClick={() => navigate(`/sign-up?redirect_url=/claim?code=${result.claimCode}`)}
+                        className="w-full"
+                      >
+                        Criar Conta e Resgatar →
+                      </Button>
+                      <p className="text-xs text-center text-muted-foreground">
+                        Já tem conta?{' '}
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/sign-in?redirect_url=/claim?code=${result.claimCode}`)}
+                          className="text-primary hover:underline"
+                        >
+                          Fazer login
+                        </button>
+                      </p>
+                    </div>
+                  )}
 
                   {result.status === 'waitlisted' && (
                     <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">

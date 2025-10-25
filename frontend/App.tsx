@@ -19,6 +19,7 @@ import CookieMarker from './components/tools/CookieMarker';
 import SalesNotification from './components/tools/SalesNotification';
 import MembershipGate from './components/membership/MembershipGate';
 import MembershipLookup from './components/membership/MembershipLookup';
+import ClaimMembership from './components/membership/ClaimMembership';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import { config } from './config';
@@ -276,6 +277,7 @@ export default function App() {
             <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos-de-uso" element={<TermsOfService />} />
             <Route path="/membership/lookup" element={<MembershipLookup />} />
+            <Route path="/claim" element={<ClaimMembership />} />
             <Route path="/*" element={<AppContent />} />
           </Routes>
         </Router>
@@ -290,6 +292,7 @@ export default function App() {
           <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
           <Route path="/termos-de-uso" element={<TermsOfService />} />
           <Route path="/membership/lookup" element={<MembershipLookup />} />
+          <Route path="/claim" element={<ClaimMembership />} />
           <Route path="/*" element={<AppWithAuth />} />
         </Routes>
       </Router>
