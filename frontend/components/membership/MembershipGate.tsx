@@ -17,7 +17,7 @@ const ADMIN_EMAILS = [
 
 export default function MembershipGate({ children }: MembershipGateProps) {
   const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
+  const { isLoaded: userLoaded, user } = useUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
@@ -29,22 +29,21 @@ export default function MembershipGate({ children }: MembershipGateProps) {
       return;
     }
 
+    // Aguardar dados do usuário serem carregados
+    if (!userLoaded || !user) {
+      return;
+    }
+
     // Verificar se é administrador
     const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-    console.log('🔍 DEBUG MembershipGate - User email:', userEmail);
-    console.log('🔍 DEBUG MembershipGate - Admin emails:', ADMIN_EMAILS);
-    console.log('🔍 DEBUG MembershipGate - Is admin?:', userEmail && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail));
-
     if (userEmail && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
       // Admin sempre tem acesso
-      console.log('✅ User is ADMIN - bypassing membership check');
       setMembershipStatus('admin');
       setHasChecked(true);
       setLoading(false);
       return;
     }
 
-    console.log('ℹ️ Not admin, checking membership...');
     const checkMembership = async () => {
       try {
         const response = await backend.hub.getMembership();
@@ -61,10 +60,10 @@ export default function MembershipGate({ children }: MembershipGateProps) {
     };
 
     checkMembership();
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, userLoaded, user]);
 
   // Loading state
-  if (loading || !isLoaded) {
+  if (loading || !isLoaded || !userLoaded) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
