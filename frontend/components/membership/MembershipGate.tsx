@@ -31,26 +31,19 @@ export default function MembershipGate({ children }: MembershipGateProps) {
 
     // Aguardar dados do usuário serem carregados
     if (!userLoaded || !user) {
-      console.log('⏳ Waiting for user data to load...');
       return;
     }
 
     // Verificar se é administrador
     const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
-    console.log('🔍 DEBUG MembershipGate - User email:', userEmail);
-    console.log('🔍 DEBUG MembershipGate - Admin emails:', ADMIN_EMAILS);
-    console.log('🔍 DEBUG MembershipGate - Is admin?:', userEmail && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail));
-
     if (userEmail && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
       // Admin sempre tem acesso
-      console.log('✅ User is ADMIN - bypassing membership check');
       setMembershipStatus('admin');
       setHasChecked(true);
       setLoading(false);
       return;
     }
 
-    console.log('ℹ️ Not admin, checking membership...');
     const checkMembership = async () => {
       try {
         const response = await backend.hub.getMembership();
