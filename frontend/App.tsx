@@ -85,7 +85,7 @@ function SignInPage() {
         routing="path"
         path="/sign-in"
         signUpUrl="/sign-up"
-        afterSignInUrl="/dashboard"
+        fallbackRedirectUrl="/dashboard"
       />
     </div>
   );
@@ -99,7 +99,7 @@ function SignUpPage() {
         routing="path"
         path="/sign-up"
         signInUrl="/sign-in"
-        afterSignUpUrl="/dashboard"
+        fallbackRedirectUrl="/dashboard"
       />
     </div>
   );
