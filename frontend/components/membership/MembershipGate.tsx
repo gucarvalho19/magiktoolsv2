@@ -11,7 +11,7 @@ interface MembershipGateProps {
 
 // Lista de emails de administradores que sempre têm acesso
 const ADMIN_EMAILS = [
-  'gustavocarvalho199@gmail.com',
+  'guuh2358@gmail.com',
   // Adicione outros emails de admin aqui
 ];
 
