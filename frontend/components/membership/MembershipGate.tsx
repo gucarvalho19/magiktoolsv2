@@ -9,6 +9,12 @@ interface MembershipGateProps {
   children: React.ReactNode;
 }
 
+// Lista de emails de administradores que sempre têm acesso
+const ADMIN_EMAILS = [
+  'guuh2358@gmail.com',
+  // Adicione outros emails de admin aqui
+];
+
 export default function MembershipGate({ children }: MembershipGateProps) {
   const { isLoaded, isSignedIn } = useAuth();
   const { user } = useUser();
@@ -19,6 +25,16 @@ export default function MembershipGate({ children }: MembershipGateProps) {
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
+      setLoading(false);
+      return;
+    }
+
+    // Verificar se é administrador
+    const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+    if (userEmail && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
+      // Admin sempre tem acesso
+      setMembershipStatus('admin');
+      setHasChecked(true);
       setLoading(false);
       return;
     }
@@ -39,7 +55,7 @@ export default function MembershipGate({ children }: MembershipGateProps) {
     };
 
     checkMembership();
-  }, [isLoaded, isSignedIn]);
+  }, [isLoaded, isSignedIn, user]);
 
   // Loading state
   if (loading || !isLoaded) {
@@ -156,8 +172,8 @@ export default function MembershipGate({ children }: MembershipGateProps) {
     );
   }
 
-  // Inactive statuses
-  if (membershipStatus && !['active', 'waitlisted'].includes(membershipStatus)) {
+  // Inactive statuses (block everything except active, waitlisted, and admin)
+  if (membershipStatus && !['active', 'waitlisted', 'admin'].includes(membershipStatus)) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="max-w-md w-full p-8 space-y-6 text-center">
@@ -197,7 +213,7 @@ export default function MembershipGate({ children }: MembershipGateProps) {
     );
   }
 
-  // Active membership - allow access
+  // Active membership or admin - allow access
   return <>{children}</>;
 }
 
