@@ -17,7 +17,7 @@ const ADMIN_EMAILS = [
 
 export default function MembershipGate({ children }: MembershipGateProps) {
   const { isLoaded, isSignedIn } = useAuth();
-  const { user } = useUser();
+  const { isLoaded: userLoaded, user } = useUser();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
@@ -26,6 +26,12 @@ export default function MembershipGate({ children }: MembershipGateProps) {
   useEffect(() => {
     if (!isLoaded || !isSignedIn) {
       setLoading(false);
+      return;
+    }
+
+    // Aguardar dados do usuário serem carregados
+    if (!userLoaded || !user) {
+      console.log('⏳ Waiting for user data to load...');
       return;
     }
 
@@ -61,10 +67,10 @@ export default function MembershipGate({ children }: MembershipGateProps) {
     };
 
     checkMembership();
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, userLoaded, user]);
 
   // Loading state
-  if (loading || !isLoaded) {
+  if (loading || !isLoaded || !userLoaded) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
