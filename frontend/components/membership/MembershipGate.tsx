@@ -54,24 +54,39 @@ export default function MembershipGate({ children }: MembershipGateProps) {
       return;
     }
 
-    const checkMembership = async () => {
+    const checkMembership = async (attempt = 0) => {
+      let shouldStopLoading = true;
       try {
-        console.log('🔍 Checking membership via API...');
+        console.log('🔍 Checking membership via API... (attempt ' + (attempt + 1) + ')');
         const response = await backend.hub.getMembership();
         console.log('✅ Membership status:', response.status);
         setMembershipStatus(response.status);
         setHasChecked(true);
       } catch (err: any) {
         console.error('❌ Error checking membership:', err);
-        // User doesn't have membership
+
+        // Se for 401 e ainda não tentamos 3 vezes, retry
+        if ((err.message?.includes('authentication credentials') || err.message?.includes('401')) && attempt < 3) {
+          console.log(`🔄 Got 401, token may not be ready yet. Retrying in ${attempt + 1} second(s)... (${attempt + 1}/3)`);
+          shouldStopLoading = false; // Manter loading screen durante retry
+          setTimeout(() => {
+            checkMembership(attempt + 1); // Retry com contador incrementado
+          }, (attempt + 1) * 1000); // Exponential backoff: 1s, 2s, 3s
+          return; // Não seta hasChecked, mantém loading
+        }
+
+        // Depois de 3 tentativas ou outros erros: user realmente não tem membership
+        console.log('❌ Max retries reached or non-401 error. Treating as no membership.');
         setMembershipStatus(null);
         setHasChecked(true);
       } finally {
-        setLoading(false);
+        if (shouldStopLoading) {
+          setLoading(false);
+        }
       }
     };
 
-    checkMembership();
+    checkMembership(0);
   }, [isLoaded, isSignedIn, userLoaded, user]);
 
   console.log('🎨 Rendering MembershipGate', { loading, isLoaded, userLoaded, hasChecked, membershipStatus });
