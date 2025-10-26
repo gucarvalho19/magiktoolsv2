@@ -39,10 +39,17 @@ export default function MembershipGate({ children }: MembershipGateProps) {
       return;
     }
 
+    // Aguardar email do usuário ser carregado (pode levar mais tempo que user object)
+    if (!user.primaryEmailAddress?.emailAddress) {
+      console.log('⏳ User email not loaded yet, keeping loading state');
+      setLoading(true);
+      return;
+    }
+
     console.log('✅ User loaded, checking membership...');
 
     // Verificar se é administrador
-    const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+    const userEmail = user.primaryEmailAddress.emailAddress.toLowerCase();
     console.log('📧 User email:', userEmail);
 
     if (userEmail && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
