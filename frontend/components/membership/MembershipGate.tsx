@@ -24,20 +24,30 @@ export default function MembershipGate({ children }: MembershipGateProps) {
   const [hasChecked, setHasChecked] = useState(false);
 
   useEffect(() => {
+    console.log('🔄 MembershipGate useEffect', { isLoaded, isSignedIn, userLoaded, hasUser: !!user });
+
     if (!isLoaded || !isSignedIn) {
+      console.log('❌ Not loaded or not signed in');
       setLoading(false);
       return;
     }
 
     // Aguardar dados do usuário serem carregados
     if (!userLoaded || !user) {
+      console.log('⏳ User not loaded yet, keeping loading state');
+      setLoading(true); // Explicitamente manter loading
       return;
     }
 
+    console.log('✅ User loaded, checking membership...');
+
     // Verificar se é administrador
     const userEmail = user?.primaryEmailAddress?.emailAddress?.toLowerCase();
+    console.log('📧 User email:', userEmail);
+
     if (userEmail && ADMIN_EMAILS.map(e => e.toLowerCase()).includes(userEmail)) {
       // Admin sempre tem acesso
+      console.log('👑 User is ADMIN - granting access');
       setMembershipStatus('admin');
       setHasChecked(true);
       setLoading(false);
@@ -46,11 +56,13 @@ export default function MembershipGate({ children }: MembershipGateProps) {
 
     const checkMembership = async () => {
       try {
+        console.log('🔍 Checking membership via API...');
         const response = await backend.hub.getMembership();
+        console.log('✅ Membership status:', response.status);
         setMembershipStatus(response.status);
         setHasChecked(true);
       } catch (err: any) {
-        console.error('Error checking membership:', err);
+        console.error('❌ Error checking membership:', err);
         // User doesn't have membership
         setMembershipStatus(null);
         setHasChecked(true);
@@ -62,8 +74,11 @@ export default function MembershipGate({ children }: MembershipGateProps) {
     checkMembership();
   }, [isLoaded, isSignedIn, userLoaded, user]);
 
+  console.log('🎨 Rendering MembershipGate', { loading, isLoaded, userLoaded, hasChecked, membershipStatus });
+
   // Loading state
   if (loading || !isLoaded || !userLoaded) {
+    console.log('⌛ Showing loading screen');
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
