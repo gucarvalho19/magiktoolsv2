@@ -52,20 +52,35 @@ export default function AdminMemberships() {
     setSuccess(null);
 
     try {
-      const response = await backend.hub.createMembership({
-        email: formData.email,
-        kiwifyOrderId: formData.kiwifyOrderId,
-        purchasedAt: formData.purchasedAt || undefined,
-        reason: formData.reason || undefined
+      // Temporarily using fetch until Encore regenerates client with createMembership
+      const response = await fetch('/_admin/memberships/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          email: formData.email,
+          kiwifyOrderId: formData.kiwifyOrderId,
+          purchasedAt: formData.purchasedAt || undefined,
+          reason: formData.reason || undefined
+        })
       });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `Erro ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
 
       setSuccess(
         `✅ Membership criada com sucesso!\n\n` +
-        `ID: ${response.membership.id}\n` +
-        `Email: ${response.membership.email}\n` +
-        `Status: ${response.membership.status}\n` +
-        `Order ID: ${response.membership.orderId}\n` +
-        `Claim Code: ${response.membership.claimCode}`
+        `ID: ${data.membership.id}\n` +
+        `Email: ${data.membership.email}\n` +
+        `Status: ${data.membership.status}\n` +
+        `Order ID: ${data.membership.orderId}\n` +
+        `Claim Code: ${data.membership.claimCode}`
       );
 
       // Reset form
