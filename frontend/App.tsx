@@ -29,6 +29,7 @@ const FRONTEND_API = config.clerk.frontendApi;
 const CONFIG_ERROR = config.configError;
 
 console.log('🚀 NEW BUILD DEPLOYED - timestamp:', Date.now());
+// Deployment trigger: 2025-10-27
 
 // Componente de erro de configuração
 function ConfigErrorScreen({ error }: { error: string }) {
