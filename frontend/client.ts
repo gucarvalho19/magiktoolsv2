@@ -174,9 +174,13 @@ export namespace hub {
         }
 
         /**
-         * Find a membership by order ID or email
+         * Find a membership by order reference (claim code) or email
          * Public endpoint - does not require authentication
          * Only shows claim code if membership is not yet claimed
+         * 
+         * orderId parameter accepts:
+         * - order_ref (claim_code) like "q5TWQya" - what customer sees (preferred)
+         * - kiwify_order_id (UUID) like "7322272c-bb89-4df0-be5f-cffe289a8bd6" - fallback
          */
         public async findMembership(params: RequestType<typeof api_hub_find_membership_findMembership>): Promise<ResponseType<typeof api_hub_find_membership_findMembership>> {
             // Now make the actual call to the API
