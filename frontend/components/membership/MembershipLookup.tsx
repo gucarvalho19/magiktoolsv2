@@ -4,10 +4,10 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
+import backend from '../../client';
 
 type SearchMethod = 'email' | 'orderId';
-backend.hub.findMembership()
-        
+
 interface MembershipResult {
   id: number;
   email: string;
@@ -56,26 +56,11 @@ export default function MembershipLookup() {
     setError(null);
 
     try {
-      const body = searchMethod === 'email'
+      const params = searchMethod === 'email'
         ? { email: searchValue.trim() }
         : { orderId: searchValue.trim() };
 
-      const response = await fetch('/memberships/find', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      });
-
-      if (!response.ok) {
-        if (response.status === 403) {
-          throw new Error('Acesso negado. Tente novamente mais tarde.');
-        }
-        throw new Error('Erro ao buscar compra. Tente novamente.');
-      }
-
-      const data = await response.json();
+      const data = await backend.hub.findMembership(params);
 
       if (data.found && data.membership) {
         setResult(data.membership);
@@ -86,7 +71,7 @@ export default function MembershipLookup() {
       }
     } catch (err) {
       console.error('Search error:', err);
-      setError(err instanceof Error ? err.message : 'Erro ao buscar compra');
+      setError(err instanceof Error ? err.message : 'Erro ao buscar compra. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -123,7 +108,7 @@ export default function MembershipLookup() {
         <div className="text-center space-y-2">
           <h1 className="text-2xl font-bold">Encontrar Minha Compra</h1>
           <p className="text-sm text-muted-foreground">
-            Recupere seu código de resgate ou verifique o status da sua compra
+            Recupere seu ID da Venda ou verifique o status da sua compra
           </p>
         </div>
 
@@ -166,7 +151,7 @@ export default function MembershipLookup() {
               placeholder={
                 searchMethod === 'email'
                   ? 'seu@email.com'
-                  : 'KIW-XXX...'
+                  : 'Ex: q5TWQya'
               }
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
@@ -214,7 +199,7 @@ export default function MembershipLookup() {
               ) : result.claimCode ? (
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-xs">Seu código de resgate:</Label>
+                    <Label className="text-xs">Seu ID da Venda:</Label>
                     <div className="mt-2 flex gap-2">
                       <div className="flex-1 bg-muted border rounded-lg p-3 text-center">
                         <code className="text-lg font-mono font-bold">
@@ -237,7 +222,7 @@ export default function MembershipLookup() {
                     onClick={() => navigate('/dashboard')}
                     className="w-full"
                   >
-                    Resgatar Agora →
+                    Ativar Acesso →
                   </Button>
 
                   {result.status === 'waitlisted' && (
