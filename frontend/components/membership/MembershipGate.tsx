@@ -66,8 +66,10 @@ export default function MembershipGate({ children }: MembershipGateProps) {
       try {
         console.log('🔍 Checking membership via API... (attempt ' + (attempt + 1) + ')');
         const response = await backend.hub.getMembership();
-        console.log('✅ Membership status:', response.status);
-        setMembershipStatus(response.status);
+        console.log('✅ Full API response:', response);
+        console.log('✅ Membership status:', response.membership?.status);
+
+        setMembershipStatus(response.membership?.status || null);
         setHasChecked(true);
       } catch (err: any) {
         console.error('❌ Error checking membership:', err);
