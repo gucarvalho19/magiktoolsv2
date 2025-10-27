@@ -523,3 +523,4 @@ encore logs | grep -i "auth\|clerk\|token"
 **Leap Support:**
 - Docs: https://docs.leap.new
 - GitHub: https://github.com/leap-ai/leap-docs
+- Gustavo

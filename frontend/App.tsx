@@ -19,7 +19,6 @@ import CookieMarker from './components/tools/CookieMarker';
 import SalesNotification from './components/tools/SalesNotification';
 import MembershipGate from './components/membership/MembershipGate';
 import MembershipLookup from './components/membership/MembershipLookup';
-import AdminMemberships from './components/admin/AdminMemberships';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import { config } from './config';
@@ -30,6 +29,7 @@ const FRONTEND_API = config.clerk.frontendApi;
 const CONFIG_ERROR = config.configError;
 
 console.log('🚀 NEW BUILD DEPLOYED - timestamp:', Date.now());
+// Deployment trigger: 2025-10-27
 
 // Componente de erro de configuração
 function ConfigErrorScreen({ error }: { error: string }) {
@@ -98,20 +98,11 @@ function AppContent() {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1">
         <Routes>
-          <Route path="/membership/lookup" element={<MembershipLookup />} />
           <Route
             path="/dashboard"
             element={
               <ProtectedRoute>
                 <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/memberships"
-            element={
-              <ProtectedRoute>
-                <AdminMemberships />
               </ProtectedRoute>
             }
           />
