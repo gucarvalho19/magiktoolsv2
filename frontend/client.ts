@@ -101,12 +101,17 @@ export namespace auth {
 import {
     adminMemberships as api_hub_admin_memberships_adminMemberships,
     adminPromoteNext as api_hub_admin_memberships_adminPromoteNext,
+    createManualMembership as api_hub_admin_memberships_createManualMembership,
     linkMembership as api_hub_admin_memberships_linkMembership,
     revokeMembership as api_hub_admin_memberships_revokeMembership
 } from "~backend/hub/admin_memberships";
 import { claim as api_hub_claim_claim } from "~backend/hub/claim";
+import { checkClaimCode as api_hub_debug_check_claim_code_checkClaimCode } from "~backend/hub/debug_check_claim_code";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
-import { findMembership as api_hub_find_membership_findMembership } from "~backend/hub/find_membership";
+import {
+    debugListMemberships as api_hub_find_membership_debugListMemberships,
+    findMembership as api_hub_find_membership_findMembership
+} from "~backend/hub/find_membership";
 import { getMembership as api_hub_me_membership_getMembership } from "~backend/hub/me_membership";
 import { generateResponse as api_hub_openai_generateResponse } from "~backend/hub/openai";
 
@@ -119,7 +124,10 @@ export namespace hub {
             this.baseClient = baseClient
             this.adminMemberships = this.adminMemberships.bind(this)
             this.adminPromoteNext = this.adminPromoteNext.bind(this)
+            this.checkClaimCode = this.checkClaimCode.bind(this)
             this.claim = this.claim.bind(this)
+            this.createManualMembership = this.createManualMembership.bind(this)
+            this.debugListMemberships = this.debugListMemberships.bind(this)
             this.findMembership = this.findMembership.bind(this)
             this.generateResponse = this.generateResponse.bind(this)
             this.getMembership = this.getMembership.bind(this)
@@ -142,10 +150,35 @@ export namespace hub {
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_adminPromoteNext>
         }
 
+        /**
+         * Temporary debug endpoint to check what's in the database
+         */
+        public async checkClaimCode(params: RequestType<typeof api_hub_debug_check_claim_code_checkClaimCode>): Promise<ResponseType<typeof api_hub_debug_check_claim_code_checkClaimCode>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/debug/check-claim-code`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_debug_check_claim_code_checkClaimCode>
+        }
+
         public async claim(params: RequestType<typeof api_hub_claim_claim>): Promise<ResponseType<typeof api_hub_claim_claim>> {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/claim`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_claim_claim>
+        }
+
+        /**
+         * Admin endpoint to manually create a membership record
+         * Useful for purchases that happened before webhook was implemented
+         */
+        public async createManualMembership(params: RequestType<typeof api_hub_admin_memberships_createManualMembership>): Promise<ResponseType<typeof api_hub_admin_memberships_createManualMembership>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/_admin/memberships/create`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_createManualMembership>
+        }
+
+        public async debugListMemberships(): Promise<ResponseType<typeof api_hub_find_membership_debugListMemberships>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/memberships/debug/list`, {method: "GET", body: undefined})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_find_membership_debugListMemberships>
         }
 
         /**

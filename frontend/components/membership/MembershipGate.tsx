@@ -1,19 +1,6 @@
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth, useUser } from '@clerk/clerk-react';
-import { Card } from '../ui/card';
-import { Button } from '../ui/button';
-import backend from '../../client';
-
 interface MembershipGateProps {
   children: React.ReactNode;
 }
-
-// Lista de emails de administradores que sempre têm acesso
-const ADMIN_EMAILS = [
-  'guuh2358@gmail.com',
-  // Adicione outros emails de admin aqui
-];
 
 export default function MembershipGate({ children }: MembershipGateProps) {
   const { isLoaded, isSignedIn } = useAuth();
@@ -260,4 +247,3 @@ export default function MembershipGate({ children }: MembershipGateProps) {
   // Active membership or admin - allow access
   return <>{children}</>;
 }
-

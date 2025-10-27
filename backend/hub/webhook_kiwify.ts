@@ -1,6 +1,6 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import { createHmac } from "crypto";
+import { createHmac, randomBytes } from "crypto";
 import db from "../db";
 import log from "encore.dev/log";
 import { promoteNextInWaitlist } from "./memberships/promote";
@@ -12,6 +12,14 @@ const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
 const kiwifySecret = secret("KiwifySecret");
 const debug = process.env.DEBUG_KIWIFY_WEBHOOK === "true";
 const HUB_CAP = 20;
+
+/**
+ * Generates a unique claim code in format: MAGIK-XXXX-YYYY
+ */
+function generateClaimCode(): string {
+  const code = randomBytes(6).toString('hex').toUpperCase();
+  return `MAGIK-${code.slice(0, 4)}-${code.slice(4, 8)}`;
+}
 
 interface KiwifyOrderData {
   webhook_event_type: string;
@@ -249,14 +257,8 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     const hasVacancy = count < HUB_CAP;
     const status = hasVacancy ? 'active' : 'waitlisted';
 
-    // Use Kiwify's order_ref as claim code (format: 7 alphanumeric chars like 'RzYJ79T')
-    const claimCode = payload.order_ref || null;
-
-    if (!claimCode) {
-      await tx.rollback();
-      log.error("order_ref ausente no payload da Kiwify", { orderId, payload });
-      throw new Error("order_ref is required for claim code");
-    }
+    // Generate unique claim code
+    const claimCode = generateClaimCode();
 
     // Extract CPF if available (remove formatting)
     const cpf = payload.Customer?.CPF?.replace(/\D/g, '') || null;

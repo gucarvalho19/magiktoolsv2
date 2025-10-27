@@ -4,10 +4,9 @@ import { Button } from '../ui/button';
 import { Card } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import backend from '../../client';
 
-type SearchMethod = 'email' | 'claimCode';
-
+type SearchMethod = 'email' | 'orderId';
+        
 interface MembershipResult {
   id: number;
   email: string;
@@ -56,12 +55,26 @@ export default function MembershipLookup() {
     setError(null);
 
     try {
-      const params = searchMethod === 'email'
+      const body = searchMethod === 'email'
         ? { email: searchValue.trim() }
-        : { claimCode: searchValue.trim() };
+        : { orderId: searchValue.trim() };
 
-      // Call backend API using Encore client
-      const data = await backend.hub.findMembership(params);
+      const response = await fetch('/memberships/find', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          throw new Error('Acesso negado. Tente novamente mais tarde.');
+        }
+        throw new Error('Erro ao buscar compra. Tente novamente.');
+      }
+
+      const data = await response.json();
 
       if (data.found && data.membership) {
         setResult(data.membership);
@@ -70,16 +83,9 @@ export default function MembershipLookup() {
         setResult(null);
         setNotFound(true);
       }
-    } catch (err: any) {
-      console.error('[MembershipLookup] Search error:', err);
-      console.error('[MembershipLookup] Error details:', {
-        message: err?.message,
-        status: err?.status,
-        code: err?.code,
-        details: err?.details
-      });
-      const errorMessage = err?.message || 'Erro ao buscar compra. Tente novamente.';
-      setError(errorMessage);
+    } catch (err) {
+      console.error('Search error:', err);
+      setError(err instanceof Error ? err.message : 'Erro ao buscar compra');
     } finally {
       setLoading(false);
     }
@@ -137,21 +143,21 @@ export default function MembershipLookup() {
             </button>
             <button
               type="button"
-              onClick={() => setSearchMethod('claimCode')}
+              onClick={() => setSearchMethod('orderId')}
               className={`flex-1 px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                searchMethod === 'claimCode'
+                searchMethod === 'orderId'
                   ? 'bg-background shadow-sm'
                   : 'hover:bg-background/50'
               }`}
             >
-              Buscar por ID da Venda
+              Buscar por ID do Pedido
             </button>
           </div>
 
           {/* Input */}
           <div className="space-y-2">
             <Label htmlFor="search">
-              {searchMethod === 'email' ? 'E-mail usado na compra' : 'ID da Venda'}
+              {searchMethod === 'email' ? 'E-mail usado na compra' : 'ID do Pedido'}
             </Label>
             <Input
               id="search"
@@ -159,7 +165,7 @@ export default function MembershipLookup() {
               placeholder={
                 searchMethod === 'email'
                   ? 'seu@email.com'
-                  : 'Ex: 2a0NnH5'
+                  : 'KIW-XXX...'
               }
               value={searchValue}
               onChange={(e) => setSearchValue(e.target.value)}
@@ -207,7 +213,7 @@ export default function MembershipLookup() {
               ) : result.claimCode ? (
                 <div className="space-y-3">
                   <div>
-                    <Label className="text-xs">Seu ID da Venda:</Label>
+                    <Label className="text-xs">Seu código de resgate:</Label>
                     <div className="mt-2 flex gap-2">
                       <div className="flex-1 bg-muted border rounded-lg p-3 text-center">
                         <code className="text-lg font-mono font-bold">
@@ -225,25 +231,13 @@ export default function MembershipLookup() {
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <Button
-                      type="button"
-                      onClick={() => navigate(`/sign-up?redirect_url=/claim?code=${result.claimCode}`)}
-                      className="w-full"
-                    >
-                      Criar Conta e Resgatar →
-                    </Button>
-                    <p className="text-xs text-center text-muted-foreground">
-                      Já tem conta?{' '}
-                      <button
-                        type="button"
-                        onClick={() => navigate(`/sign-in?redirect_url=/claim?code=${result.claimCode}`)}
-                        className="text-primary hover:underline"
-                      >
-                        Fazer login
-                      </button>
-                    </p>
-                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => navigate('/dashboard')}
+                    className="w-full"
+                  >
+                    Resgatar Agora →
+                  </Button>
 
                   {result.status === 'waitlisted' && (
                     <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
@@ -266,7 +260,7 @@ export default function MembershipLookup() {
               Nenhuma compra encontrada
             </h2>
             <p className="text-sm text-muted-foreground">
-              Não encontramos nenhum pedido com {searchMethod === 'email' ? 'este e-mail' : 'este ID da venda'}.
+              Não encontramos nenhum pedido com {searchMethod === 'email' ? 'este e-mail' : 'este ID'}.
             </p>
             <div className="text-sm space-y-1 text-muted-foreground">
               <p className="font-medium">Sugestões:</p>
@@ -274,7 +268,7 @@ export default function MembershipLookup() {
                 <li>Verifique se digitou corretamente</li>
                 <li>
                   Tente buscar pelo{' '}
-                  {searchMethod === 'email' ? 'ID da venda' : 'e-mail'}
+                  {searchMethod === 'email' ? 'ID do pedido' : 'e-mail'}
                 </li>
                 <li>Entre em contato com o suporte</li>
               </ul>
