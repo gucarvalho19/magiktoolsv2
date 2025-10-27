@@ -183,6 +183,131 @@ export const adminPromoteNext = api<void, PromoteNextResponse>(
   }
 );
 
+interface CreateMembershipRequest {
+  email: string;
+  kiwifyOrderId: string;
+  purchasedAt?: string;
+  reason?: string;
+}
+
+interface CreateMembershipResponse {
+  success: boolean;
+  membership: {
+    id: number;
+    email: string;
+    status: string;
+    orderId: string;
+    claimCode: string;
+  };
+}
+
+/**
+ * Admin endpoint to manually create a membership record
+ * Useful when webhooks fail or for backdating memberships
+ */
+export const createMembership = api<CreateMembershipRequest, CreateMembershipResponse>(
+  { method: "POST", path: "/_admin/memberships/create", expose: true, auth: true },
+  async (req) => {
+    const auth = getAuthData();
+
+    if (!auth || !await isAdmin(auth.userID)) {
+      throw APIError.permissionDenied("admin access required");
+    }
+
+    const tx = await db.begin();
+
+    try {
+      // Check if already exists
+      const existing = await tx.queryRow<{ id: number }>`
+        SELECT id FROM memberships
+        WHERE email = ${req.email} OR kiwify_order_id = ${req.kiwifyOrderId}
+      `;
+
+      if (existing) {
+        await tx.rollback();
+        throw APIError.alreadyExists(
+          "membership already exists for this email or order ID"
+        );
+      }
+
+      // Count active memberships to determine status
+      const activeCount = await tx.queryRow<{ count: number }>`
+        SELECT COUNT(*) as count FROM memberships WHERE status = 'active'
+      `;
+
+      const hasVacancy = (activeCount?.count ?? 0) < 20;
+      const status = hasVacancy ? 'active' : 'waitlisted';
+      const purchasedAt = req.purchasedAt ? new Date(req.purchasedAt) : new Date();
+      const claimCode = req.kiwifyOrderId; // Use order ID as claim code
+
+      // Insert membership
+      const result = await tx.queryRow<{ id: number }>`
+        INSERT INTO memberships (
+          email,
+          kiwify_order_id,
+          status,
+          claim_code,
+          purchased_at,
+          activated_at,
+          created_at,
+          updated_at
+        ) VALUES (
+          ${req.email},
+          ${req.kiwifyOrderId},
+          ${status},
+          ${claimCode},
+          ${purchasedAt},
+          ${hasVacancy ? new Date() : null},
+          NOW(),
+          NOW()
+        )
+        RETURNING id
+      `;
+
+      // Log admin action for audit
+      await tx.exec`
+        INSERT INTO admin_actions (
+          admin_user_id, action_type, target_membership_id,
+          target_user_id, reason, created_at
+        )
+        VALUES (
+          ${auth.userID},
+          'create_membership',
+          ${result!.id},
+          NULL,
+          ${req.reason || 'manual creation by admin'},
+          NOW()
+        )
+      `;
+
+      await tx.commit();
+
+      log.info("Admin criou membership manualmente", {
+        adminUserId: auth.userID,
+        membershipId: result!.id,
+        email: req.email,
+        kiwifyOrderId: req.kiwifyOrderId,
+        status,
+        reason: req.reason
+      });
+
+      return {
+        success: true,
+        membership: {
+          id: result!.id,
+          email: req.email,
+          status,
+          orderId: req.kiwifyOrderId,
+          claimCode
+        }
+      };
+    } catch (err) {
+      await tx.rollback();
+      throw err;
+    }
+  }
+);
+
 interface LinkMembershipRequest {
   membershipId: number;
   clerkUserId: string;
