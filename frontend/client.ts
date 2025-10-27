@@ -109,6 +109,7 @@ import { claim as api_hub_claim_claim } from "~backend/hub/claim";
 import { checkClaimCode as api_hub_debug_check_claim_code_checkClaimCode } from "~backend/hub/debug_check_claim_code";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
 import { findMembership as api_hub_find_membership_findMembership } from "~backend/hub/find_membership";
+import { insertMembershipDebug as api_hub_insert_membership_debug_insertMembershipDebug } from "~backend/hub/insert_membership_debug";
 import { getMembership as api_hub_me_membership_getMembership } from "~backend/hub/me_membership";
 import { generateResponse as api_hub_openai_generateResponse } from "~backend/hub/openai";
 
@@ -127,6 +128,7 @@ export namespace hub {
             this.findMembership = this.findMembership.bind(this)
             this.generateResponse = this.generateResponse.bind(this)
             this.getMembership = this.getMembership.bind(this)
+            this.insertMembershipDebug = this.insertMembershipDebug.bind(this)
             this.linkMembership = this.linkMembership.bind(this)
             this.revokeMembership = this.revokeMembership.bind(this)
             this.webhookKiwify = this.webhookKiwify.bind(this)
@@ -192,6 +194,10 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/me/membership`, {method: "GET", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_me_membership_getMembership>
+        }
+
+        public async insertMembershipDebug(params: RequestType<typeof api_hub_insert_membership_debug_insertMembershipDebug>): Promise<void> {
+            await this.baseClient.callTypedAPI(`/debug/insert-membership`, {method: "POST", body: JSON.stringify(params)})
         }
 
         /**
