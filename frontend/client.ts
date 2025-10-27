@@ -101,6 +101,7 @@ export namespace auth {
 import {
     adminMemberships as api_hub_admin_memberships_adminMemberships,
     adminPromoteNext as api_hub_admin_memberships_adminPromoteNext,
+    createManualMembership as api_hub_admin_memberships_createManualMembership,
     linkMembership as api_hub_admin_memberships_linkMembership,
     revokeMembership as api_hub_admin_memberships_revokeMembership
 } from "~backend/hub/admin_memberships";
@@ -125,6 +126,7 @@ export namespace hub {
             this.adminPromoteNext = this.adminPromoteNext.bind(this)
             this.checkClaimCode = this.checkClaimCode.bind(this)
             this.claim = this.claim.bind(this)
+            this.createManualMembership = this.createManualMembership.bind(this)
             this.debugListMemberships = this.debugListMemberships.bind(this)
             this.findMembership = this.findMembership.bind(this)
             this.generateResponse = this.generateResponse.bind(this)
@@ -161,6 +163,16 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/claim`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_claim_claim>
+        }
+
+        /**
+         * Admin endpoint to manually create a membership record
+         * Useful for purchases that happened before webhook was implemented
+         */
+        public async createManualMembership(params: RequestType<typeof api_hub_admin_memberships_createManualMembership>): Promise<ResponseType<typeof api_hub_admin_memberships_createManualMembership>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/_admin/memberships/create`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_createManualMembership>
         }
 
         public async debugListMemberships(): Promise<ResponseType<typeof api_hub_find_membership_debugListMemberships>> {

@@ -1,7 +1,6 @@
 import { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { ClerkProvider, SignedIn, SignedOut, SignIn, SignUp, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react';
-import { ptBR } from '@clerk/localizations';
+import { ClerkProvider, SignedIn, SignedOut, RedirectToSignIn, useAuth, ClerkLoaded, ClerkLoading } from '@clerk/clerk-react';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Dashboard from './components/dashboard/Dashboard';
 import ToolLayout from './components/tools/ToolLayout';
@@ -20,7 +19,6 @@ import CookieMarker from './components/tools/CookieMarker';
 import SalesNotification from './components/tools/SalesNotification';
 import MembershipGate from './components/membership/MembershipGate';
 import MembershipLookup from './components/membership/MembershipLookup';
-import ClaimMembership from './components/membership/ClaimMembership';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import { config } from './config';
@@ -71,37 +69,9 @@ function ProtectedRoute({ children }: { children: any }) {
         <MembershipGate>{children}</MembershipGate>
       </SignedIn>
       <SignedOut>
-        <Navigate to="/sign-in" replace />
+        <RedirectToSignIn />
       </SignedOut>
     </>
-  );
-}
-
-// Sign In Page Component
-function SignInPage() {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <SignIn
-        routing="path"
-        path="/sign-in"
-        signUpUrl="/sign-up"
-        fallbackRedirectUrl="/dashboard"
-      />
-    </div>
-  );
-}
-
-// Sign Up Page Component
-function SignUpPage() {
-  return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <SignUp
-        routing="path"
-        path="/sign-up"
-        signInUrl="/sign-in"
-        fallbackRedirectUrl="/dashboard"
-      />
-    </div>
   );
 }
 
@@ -127,8 +97,6 @@ function AppContent() {
     <div className="min-h-screen bg-background flex flex-col">
       <div className="flex-1">
         <Routes>
-          <Route path="/sign-in" element={<SignInPage />} />
-          <Route path="/sign-up" element={<SignUpPage />} />
           <Route
             path="/dashboard"
             element={
@@ -277,7 +245,6 @@ function AppWithAuth() {
       {...(FRONTEND_API ? { frontendApi: FRONTEND_API } : {})}
       signInFallbackRedirectUrl="/dashboard"
       signUpFallbackRedirectUrl="/dashboard"
-      localization={ptBR}
     >
       <ClerkLoaded>
         <AppContent />
@@ -309,7 +276,6 @@ export default function App() {
             <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos-de-uso" element={<TermsOfService />} />
             <Route path="/membership/lookup" element={<MembershipLookup />} />
-            <Route path="/claim" element={<ClaimMembership />} />
             <Route path="/*" element={<AppContent />} />
           </Routes>
         </Router>
@@ -324,7 +290,6 @@ export default function App() {
           <Route path="/politica-de-privacidade" element={<PrivacyPolicy />} />
           <Route path="/termos-de-uso" element={<TermsOfService />} />
           <Route path="/membership/lookup" element={<MembershipLookup />} />
-          <Route path="/claim" element={<ClaimMembership />} />
           <Route path="/*" element={<AppWithAuth />} />
         </Routes>
       </Router>
