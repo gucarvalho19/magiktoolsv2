@@ -35,10 +35,15 @@ export default function ClaimScreen() {
         setStatus('loading');
         console.log('📡 Making fetch request to /claim...');
 
-        // Use fetch directly until Encore regenerates client with claim method
+        // Get Clerk token
+        const token = await user.getIdToken();
+        console.log('🔑 Got Clerk token:', token ? 'YES' : 'NO');
+
+        // Use fetch directly with Clerk token
         const response = await fetch('/claim', {
           method: 'POST',
           headers: {
+            'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
           credentials: 'include',

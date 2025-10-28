@@ -66,17 +66,38 @@ export default function MembershipGate({ children }: MembershipGateProps) {
       let shouldStopLoading = true;
       try {
         console.log('🔍 Checking membership via API... (attempt ' + (attempt + 1) + ')');
-        const response = await backend.hub.getMembership();
-        console.log('✅ Full API response:', response);
-        console.log('✅ Membership status:', response.membership?.status);
 
-        setMembershipStatus(response.membership?.status || null);
+        // Get Clerk token
+        const token = await user.getIdToken();
+        console.log('🔑 Got Clerk token:', token ? 'YES' : 'NO');
+
+        // Use fetch directly with Clerk token
+        const response = await fetch('/me/membership', {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        });
+
+        console.log('📡 Response status:', response.status, response.ok);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        console.log('✅ Full API response:', data);
+        console.log('✅ Membership status:', data.membership?.status);
+
+        setMembershipStatus(data.membership?.status || null);
         setHasChecked(true);
       } catch (err: any) {
         console.error('❌ Error checking membership:', err);
 
         // Se for 401 e ainda não tentamos 3 vezes, retry
-        if ((err.message?.includes('authentication credentials') || err.message?.includes('401')) && attempt < 3) {
+        if ((err.message?.includes('401') || err.message?.includes('HTTP 401')) && attempt < 3) {
           console.log(`🔄 Got 401, token may not be ready yet. Retrying in ${attempt + 1} second(s)... (${attempt + 1}/3)`);
           shouldStopLoading = false; // Manter loading screen durante retry
           setTimeout(() => {
