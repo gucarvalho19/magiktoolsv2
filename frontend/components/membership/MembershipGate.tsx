@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth, useUser } from '@clerk/clerk-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import backend from '../../client';
+import { useBackend } from '../../lib/useBackend';
 
 interface MembershipGateProps {
   children: React.ReactNode;
@@ -19,6 +19,7 @@ export default function MembershipGate({ children }: MembershipGateProps) {
   const { isLoaded, isSignedIn } = useAuth();
   const { isLoaded: userLoaded, user } = useUser();
   const navigate = useNavigate();
+  const backend = useBackend();
   const [loading, setLoading] = useState(true);
   const [membershipStatus, setMembershipStatus] = useState<string | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
