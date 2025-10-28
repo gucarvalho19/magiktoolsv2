@@ -227,7 +227,7 @@ export default function MembershipLookup() {
 
                   <Button
                     type="button"
-                    onClick={() => navigate(`/`)}
+                    onClick={() => navigate(`/claim?code=${result.claimCode}`)}
                     className="w-full"
                   >
                     Ativar Acesso →
