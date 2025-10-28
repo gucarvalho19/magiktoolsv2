@@ -3,7 +3,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useUser } from '@clerk/clerk-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
-import backend from '../../client';
 
 export default function ClaimScreen() {
   const navigate = useNavigate();
@@ -33,9 +32,24 @@ export default function ClaimScreen() {
       try {
         setStatus('loading');
 
-        const response = await backend.hub.claim({ claimCode });
+        // Use fetch directly until Encore regenerates client with claim method
+        const response = await fetch('/claim', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({ claimCode })
+        });
 
-        console.log('✅ Claim successful:', response);
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || `Erro ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        console.log('✅ Claim successful:', data);
         setStatus('success');
 
         // Redirect to dashboard after 2 seconds
