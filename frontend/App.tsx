@@ -19,6 +19,7 @@ import CookieMarker from './components/tools/CookieMarker';
 import SalesNotification from './components/tools/SalesNotification';
 import MembershipGate from './components/membership/MembershipGate';
 import MembershipLookup from './components/membership/MembershipLookup';
+import ClaimScreen from './components/membership/ClaimScreen';
 import PrivacyPolicy from './components/PrivacyPolicy';
 import TermsOfService from './components/TermsOfService';
 import { config } from './config';
@@ -103,6 +104,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/claim"
+            element={
+              <ProtectedRoute>
+                <ClaimScreen />
               </ProtectedRoute>
             }
           />
