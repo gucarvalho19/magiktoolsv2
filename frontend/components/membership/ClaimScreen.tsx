@@ -14,6 +14,8 @@ export default function ClaimScreen() {
 
   useEffect(() => {
     const processClaim = async () => {
+      console.log('🎫 ClaimScreen useEffect triggered', { claimCode, hasUser: !!user });
+
       // Verify we have a code
       if (!claimCode) {
         console.log('❌ No claim code provided');
@@ -31,6 +33,7 @@ export default function ClaimScreen() {
 
       try {
         setStatus('loading');
+        console.log('📡 Making fetch request to /claim...');
 
         // Use fetch directly until Encore regenerates client with claim method
         const response = await fetch('/claim', {
@@ -42,8 +45,15 @@ export default function ClaimScreen() {
           body: JSON.stringify({ claimCode })
         });
 
+        console.log('📡 Response received:', {
+          status: response.status,
+          ok: response.ok,
+          statusText: response.statusText
+        });
+
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));
+          console.error('❌ Response not OK:', errorData);
           throw new Error(errorData.message || `Erro ${response.status}`);
         }
 
@@ -54,6 +64,7 @@ export default function ClaimScreen() {
 
         // Redirect to dashboard after 2 seconds
         setTimeout(() => {
+          console.log('🔄 Redirecting to dashboard...');
           navigate('/dashboard');
         }, 2000);
       } catch (err: any) {
