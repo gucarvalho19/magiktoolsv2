@@ -64,50 +64,47 @@ export default function MembershipGate({ children }: MembershipGateProps) {
 
     const checkMembership = async (attempt = 0) => {
       let shouldStopLoading = true;
+      
+      const timeoutId = setTimeout(() => {
+        if (loading) {
+          console.log('⏰ Membership check timeout after 10s');
+          setLoading(false);
+          setMembershipStatus(null);
+          setHasChecked(true);
+        }
+      }, 10000);
+      
       try {
         console.log('🔍 Checking membership via API... (attempt ' + (attempt + 1) + ')');
 
-        // Get Clerk token
-        const token = await user.getIdToken();
-        console.log('🔑 Got Clerk token:', token ? 'YES' : 'NO');
-
-        // Use fetch directly with Clerk token
-        const response = await fetch('/me/membership', {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        });
-
-        console.log('📡 Response status:', response.status, response.ok);
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await backend.hub.getMembership();
+        
         console.log('✅ Full API response:', data);
         console.log('✅ Membership status:', data.membership?.status);
 
+        clearTimeout(timeoutId);
         setMembershipStatus(data.membership?.status || null);
         setHasChecked(true);
       } catch (err: any) {
         console.error('❌ Error checking membership:', err);
 
-        // Se for 401 e ainda não tentamos 3 vezes, retry
-        if ((err.message?.includes('401') || err.message?.includes('HTTP 401')) && attempt < 3) {
-          console.log(`🔄 Got 401, token may not be ready yet. Retrying in ${attempt + 1} second(s)... (${attempt + 1}/3)`);
-          shouldStopLoading = false; // Manter loading screen durante retry
+        const is5xxOrNetwork = 
+          err.message?.includes('5') || 
+          err.message?.toLowerCase().includes('network') ||
+          err.message?.toLowerCase().includes('fetch') ||
+          err.code === 'network_error';
+
+        if (is5xxOrNetwork && attempt < 3) {
+          console.log(`🔄 Got 5xx/network error. Retrying in ${attempt + 1} second(s)... (${attempt + 1}/3)`);
+          shouldStopLoading = false;
           setTimeout(() => {
-            checkMembership(attempt + 1); // Retry com contador incrementado
-          }, (attempt + 1) * 1000); // Exponential backoff: 1s, 2s, 3s
-          return; // Não seta hasChecked, mantém loading
+            checkMembership(attempt + 1);
+          }, (attempt + 1) * 1000);
+          return;
         }
 
-        // Depois de 3 tentativas ou outros erros: user realmente não tem membership
-        console.log('❌ Max retries reached or non-401 error. Treating as no membership.');
+        console.log('❌ Max retries reached or non-retryable error. Treating as no membership.');
+        clearTimeout(timeoutId);
         setMembershipStatus(null);
         setHasChecked(true);
       } finally {

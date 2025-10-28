@@ -11,13 +11,13 @@ type SearchMethod = 'email' | 'orderId';
 interface MembershipResult {
   id: number;
   email: string;
-  status: 'active' | 'waitlisted' | 'pending' | 'past_due' | 'canceled' | 'refunded';
+  status: string;
   purchasedAt: string;
   isClaimed: boolean;
   claimCode?: string;
 }
 
-const statusColors = {
+const statusColors: Record<string, string> = {
   active: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
   waitlisted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400',
   pending: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
@@ -26,7 +26,7 @@ const statusColors = {
   refunded: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400',
 };
 
-const statusLabels = {
+const statusLabels: Record<string, string> = {
   active: 'Ativo',
   waitlisted: 'Lista de Espera',
   pending: 'Pendente',
@@ -188,6 +188,14 @@ export default function MembershipLookup() {
               <div>
                 <span className="text-muted-foreground">Data da compra: </span>
                 <span className="font-medium">{formatDate(result.purchasedAt)}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Status: </span>
+                <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
+                  statusColors[result.status] || 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
+                }`}>
+                  {statusLabels[result.status] || result.status}
+                </span>
               </div>
 
               {result.isClaimed ? (

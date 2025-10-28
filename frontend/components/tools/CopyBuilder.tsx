@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PenTool } from 'lucide-react';
 import ChatLayout, { ChatMessage } from './ChatLayout';
 import { useCompleteScrollToTop } from '@/lib/scrollToTop';
-import { useBackend } from '@/lib/backend';
+import { useBackend } from '@/lib/useBackend';
 
 export default function CopyBuilder() {
   useCompleteScrollToTop();

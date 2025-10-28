@@ -1,31 +1,31 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useUser } from '@clerk/clerk-react';
+import { useAuth } from '@clerk/clerk-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
+import { useBackend } from '../../lib/useBackend';
 
 export default function ClaimScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user } = useUser();
+  const { isLoaded, isSignedIn } = useAuth();
+  const backend = useBackend();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-code'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const claimCode = searchParams.get('code');
 
   useEffect(() => {
     const processClaim = async () => {
-      console.log('🎫 ClaimScreen useEffect triggered', { claimCode, hasUser: !!user });
+      console.log('🎫 ClaimScreen useEffect triggered', { claimCode, isLoaded, isSignedIn });
 
-      // Verify we have a code
       if (!claimCode) {
         console.log('❌ No claim code provided');
         setStatus('no-code');
         return;
       }
 
-      // Verify user is loaded
-      if (!user) {
-        console.log('⏳ Waiting for user to load...');
+      if (!isLoaded || !isSignedIn) {
+        console.log('⏳ Waiting for auth to load...');
         return;
       }
 
@@ -33,41 +33,13 @@ export default function ClaimScreen() {
 
       try {
         setStatus('loading');
-        console.log('📡 Making fetch request to /claim...');
+        console.log('📡 Calling backend.hub.claim...');
 
-        // Get Clerk token
-        const token = await user.getIdToken();
-        console.log('🔑 Got Clerk token:', token ? 'YES' : 'NO');
-
-        // Use fetch directly with Clerk token
-        const response = await fetch('/claim', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({ claimCode })
-        });
-
-        console.log('📡 Response received:', {
-          status: response.status,
-          ok: response.ok,
-          statusText: response.statusText
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('❌ Response not OK:', errorData);
-          throw new Error(errorData.message || `Erro ${response.status}`);
-        }
-
-        const data = await response.json();
+        const data = await backend.hub.claim({ claimCode });
 
         console.log('✅ Claim successful:', data);
         setStatus('success');
 
-        // Redirect to dashboard after 2 seconds
         setTimeout(() => {
           console.log('🔄 Redirecting to dashboard...');
           navigate('/dashboard');
@@ -80,7 +52,7 @@ export default function ClaimScreen() {
     };
 
     processClaim();
-  }, [claimCode, user, navigate]);
+  }, [claimCode, isLoaded, isSignedIn, navigate, backend]);
 
   // Loading state
   if (status === 'loading') {
