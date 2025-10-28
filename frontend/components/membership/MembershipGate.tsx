@@ -141,22 +141,15 @@ export default function MembershipGate({ children }: MembershipGateProps) {
           <div className="space-y-2">
             <h1 className="text-2xl font-bold">Acesso Restrito</h1>
             <p className="text-muted-foreground">
-              Você precisa resgatar um ID de Venda para acessar o MagikTools Hub.
+              Você precisa vincular sua compra para acessar o MagikTools Hub.
             </p>
           </div>
           <div className="space-y-3">
             <Button
-              onClick={() => navigate('/claim')}
-              className="w-full"
-            >
-              Resgatar ID →
-            </Button>
-            <Button
               onClick={() => navigate('/membership/lookup')}
-              variant="outline"
               className="w-full"
             >
-              Buscar Minha Compra
+              Buscar Minha Compra →
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
