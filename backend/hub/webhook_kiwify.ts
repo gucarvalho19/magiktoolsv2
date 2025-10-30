@@ -214,7 +214,10 @@ export const webhookKiwify = api.raw(
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ status: "ok" }));
     } catch (err) {
-      log.error("Erro no webhook Kiwify", { error: err });
+      const errorDetails = err instanceof Error
+        ? { message: err.message, stack: err.stack, name: err.name, ...err }
+        : { error: String(err) };
+      log.error("Erro no webhook Kiwify", errorDetails);
       res.statusCode = 200;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ status: "ok" }));
@@ -228,9 +231,12 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     return;
   }
 
+  log.info("Iniciando processamento de order_approved", { orderId, email });
+
   const tx = await db.begin();
 
   try {
+    log.info("Verificando idempotência", { orderId });
     const existing = await tx.queryRow<{ id: number }>`
       SELECT id FROM memberships WHERE kiwify_order_id = ${orderId}
     `;
@@ -241,6 +247,7 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
       return;
     }
 
+    log.info("Contando memberships ativos", { orderId });
     const activeCount = await tx.queryRow<{ count: number }>`
       SELECT COUNT(*) as count FROM memberships WHERE status = 'active'
     `;
@@ -254,6 +261,16 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
 
     // Extract CPF if available (remove formatting)
     const cpf = payload.Customer?.CPF?.replace(/\D/g, '') || null;
+
+    log.info("Preparando inserção", {
+      orderId,
+      email,
+      status,
+      claimCode,
+      hasCpf: !!cpf,
+      activeCount: count,
+      hasVacancy
+    });
 
     const result = await tx.queryRow<{ id: number }>`
       INSERT INTO memberships (
@@ -277,7 +294,10 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
       RETURNING id
     `;
 
+    log.info("Membership inserida com sucesso", { orderId, membershipId: result?.id });
+
     await tx.commit();
+    log.info("Transação commitada", { orderId });
 
     log.info("Pedido aprovado processado", {
       orderId,
@@ -294,7 +314,14 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     // await sendClaimCodeEmail(email, claimCode, status);
   } catch (err) {
     await tx.rollback();
-    log.error("Erro ao processar order_approved", { orderId, error: err });
+    const errorDetails = err instanceof Error
+      ? { message: err.message, stack: err.stack, name: err.name, ...err }
+      : { error: String(err) };
+    log.error("Erro ao processar order_approved", {
+      orderId,
+      email,
+      ...errorDetails
+    });
     throw err;
   }
 }
@@ -369,7 +396,10 @@ async function handleSubscriptionRenewed(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    log.error("Erro ao processar subscription_renewed", { orderId, error: err });
+    const errorDetails = err instanceof Error
+      ? { message: err.message, stack: err.stack, name: err.name, ...err }
+      : { error: String(err) };
+    log.error("Erro ao processar subscription_renewed", { orderId, ...errorDetails });
     throw err;
   }
 }
@@ -410,7 +440,10 @@ async function handleSubscriptionLate(orderId: string) {
     log.info("Assinatura marcada como past_due", { orderId, membershipId: membership.id });
   } catch (err) {
     await tx.rollback();
-    log.error("Erro ao processar subscription_late", { orderId, error: err });
+    const errorDetails = err instanceof Error
+      ? { message: err.message, stack: err.stack, name: err.name, ...err }
+      : { error: String(err) };
+    log.error("Erro ao processar subscription_late", { orderId, ...errorDetails });
     throw err;
   }
 }
@@ -458,7 +491,10 @@ async function handleSubscriptionCanceled(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    log.error("Erro ao processar subscription_canceled", { orderId, error: err });
+    const errorDetails = err instanceof Error
+      ? { message: err.message, stack: err.stack, name: err.name, ...err }
+      : { error: String(err) };
+    log.error("Erro ao processar subscription_canceled", { orderId, ...errorDetails });
     throw err;
   }
 }
@@ -506,7 +542,10 @@ async function handleOrderRefunded(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    log.error("Erro ao processar order_refunded", { orderId, error: err });
+    const errorDetails = err instanceof Error
+      ? { message: err.message, stack: err.stack, name: err.name, ...err }
+      : { error: String(err) };
+    log.error("Erro ao processar order_refunded", { orderId, ...errorDetails });
     throw err;
   }
 }
@@ -554,7 +593,10 @@ async function handleChargeback(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    log.error("Erro ao processar chargeback", { orderId, error: err });
+    const errorDetails = err instanceof Error
+      ? { message: err.message, stack: err.stack, name: err.name, ...err }
+      : { error: String(err) };
+    log.error("Erro ao processar chargeback", { orderId, ...errorDetails });
     throw err;
   }
 }
