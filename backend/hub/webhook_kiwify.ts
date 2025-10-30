@@ -314,9 +314,45 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     // await sendClaimCodeEmail(email, claimCode, status);
   } catch (err) {
     await tx.rollback();
-    const errorDetails = err instanceof Error
-      ? { message: err.message, stack: err.stack, name: err.name, ...err }
-      : { error: String(err) };
+
+    // Log full error to console for debugging (won't be truncated)
+    console.error("=== FULL ERROR DETAILS ===");
+    console.error("Error object:", err);
+    console.error("Error string:", String(err));
+    console.error("Error JSON:", JSON.stringify(err, Object.getOwnPropertyNames(err), 2));
+
+    // Extract detailed error information
+    let errorDetails: any = { error: String(err) };
+
+    if (err instanceof Error) {
+      errorDetails = {
+        name: err.name,
+        message: err.message,
+        stack: err.stack,
+      };
+
+      // Try to extract additional properties from the error object
+      const errObj = err as any;
+      if (errObj.cause) {
+        errorDetails.cause = JSON.stringify(errObj.cause, null, 2);
+      }
+      if (errObj.code) {
+        errorDetails.dbCode = errObj.code;
+      }
+      if (errObj.detail) {
+        errorDetails.detail = errObj.detail;
+      }
+      if (errObj.constraint) {
+        errorDetails.constraint = errObj.constraint;
+      }
+      if (errObj.table) {
+        errorDetails.table = errObj.table;
+      }
+      if (errObj.column) {
+        errorDetails.column = errObj.column;
+      }
+    }
+
     log.error("Erro ao processar order_approved", {
       orderId,
       email,
