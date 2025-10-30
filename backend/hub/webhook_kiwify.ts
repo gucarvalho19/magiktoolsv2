@@ -272,27 +272,63 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
       hasVacancy
     });
 
-    const result = await tx.queryRow<{ id: number }>`
-      INSERT INTO memberships (
-        email,
-        kiwify_order_id,
-        status,
-        claim_code,
-        customer_cpf,
-        activated_at,
-        purchased_at
-      )
-      VALUES (
-        ${email},
-        ${orderId},
-        ${status},
-        ${claimCode},
-        ${cpf},
-        CASE WHEN ${hasVacancy} THEN NOW() ELSE NULL END,
-        NOW()
-      )
-      RETURNING id
-    `;
+    log.info("Executando INSERT INTO memberships", {
+      orderId,
+      email,
+      kiwifyOrderId: orderId,
+      status,
+      claimCode,
+      cpf: cpf || "NULL",
+      hasVacancy: String(hasVacancy)
+    });
+
+    let result;
+    try {
+      result = await tx.queryRow<{ id: number }>`
+        INSERT INTO memberships (
+          email,
+          kiwify_order_id,
+          status,
+          claim_code,
+          customer_cpf,
+          activated_at,
+          purchased_at
+        )
+        VALUES (
+          ${email},
+          ${orderId},
+          ${status},
+          ${claimCode},
+          ${cpf},
+          CASE WHEN ${hasVacancy} THEN NOW() ELSE NULL END,
+          NOW()
+        )
+        RETURNING id
+      `;
+    } catch (insertErr) {
+      // Log insert error with all available details
+      const insertErrObj = insertErr as any;
+      log.error("FALHA NO INSERT", {
+        orderId,
+        errorString: String(insertErr),
+        errorName: insertErrObj?.name,
+        errorMessage: insertErrObj?.message,
+        errorCode: insertErrObj?.code,
+        errorDetail: insertErrObj?.detail,
+        errorConstraint: insertErrObj?.constraint,
+        errorTable: insertErrObj?.table,
+        errorColumn: insertErrObj?.column,
+        errorSchema: insertErrObj?.schema,
+        insertValues: {
+          email,
+          orderId,
+          status,
+          claimCode,
+          cpf: cpf ? "***" : null
+        }
+      });
+      throw insertErr;
+    }
 
     log.info("Membership inserida com sucesso", { orderId, membershipId: result?.id });
 
