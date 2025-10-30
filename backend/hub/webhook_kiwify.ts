@@ -57,6 +57,23 @@ interface KiwifyOrderData {
   subscription_status?: string;
 }
 
+interface KiwifyAbandonedCheckout {
+  id: string;
+  status: "abandoned";
+  checkout_link: string;
+  email: string;
+  name: string;
+  phone?: string;
+  cnpj?: string;
+  country?: string;
+  product_id: string;
+  product_name: string;
+  offer_name?: string;
+  subscription_plan?: string;
+  store_id: string;
+  created_at: string;
+}
+
 interface KiwifyWebhookPayload {
   // Formato com wrapper (formato real enviado pela Kiwify)
   url?: string;
@@ -139,6 +156,28 @@ export const webhookKiwify = api.raw(
 
       const payload: KiwifyWebhookPayload = JSON.parse(rawBody);
 
+      // Detectar tipo de webhook: checkout abandonado vs evento de pedido
+      const payloadAny = payload as any;
+
+      // Webhook de checkout abandonado (não tem webhook_event_type, mas tem status)
+      if (payloadAny.status === "abandoned" && !payloadAny.webhook_event_type) {
+        const abandonedCheckout = payloadAny as KiwifyAbandonedCheckout;
+        log.info("Checkout abandonado recebido (ignorado)", {
+          checkoutId: abandonedCheckout.id,
+          email: abandonedCheckout.email,
+          productName: abandonedCheckout.product_name,
+          createdAt: abandonedCheckout.created_at,
+        });
+
+        // TODO: Salvar em tabela abandoned_checkouts para futura recuperação
+        // Por enquanto, apenas ignoramos graciosamente
+
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ status: "ok", message: "Abandoned checkout ignored" }));
+        return;
+      }
+
       // Extrair dados do formato correto (wrapper.order ou direto no root)
       const orderData: KiwifyOrderData = payload.order
         ? payload.order
@@ -148,7 +187,7 @@ export const webhookKiwify = api.raw(
       const orderId = orderData.order_id;
       const email = orderData.Customer?.email ?? "";
 
-      // Validação de campos obrigatórios
+      // Validação de campos obrigatórios para eventos de pedido
       if (!eventType) {
         log.error("Webhook sem webhook_event_type", { payload });
         res.statusCode = 400;
