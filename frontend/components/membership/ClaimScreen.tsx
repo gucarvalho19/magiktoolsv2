@@ -5,6 +5,8 @@ import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { useBackend } from '../../lib/useBackend';
 
+const CLAIM_CODE_STORAGE_KEY = 'pending_claim_code';
+
 export default function ClaimScreen() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -12,20 +14,34 @@ export default function ClaimScreen() {
   const backend = useBackend();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-code'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const claimCode = searchParams.get('code');
+  const claimCodeFromUrl = searchParams.get('code');
 
   useEffect(() => {
     const processClaim = async () => {
-      console.log('🎫 ClaimScreen useEffect triggered', { claimCode, isLoaded, isSignedIn });
+      console.log('🎫 ClaimScreen useEffect triggered', { claimCodeFromUrl, isLoaded, isSignedIn });
+
+      // Get claim code from URL or localStorage
+      let claimCode = claimCodeFromUrl;
 
       if (!claimCode) {
-        console.log('❌ No claim code provided');
+        // Try to get from localStorage (in case Clerk redirected after signup)
+        const storedCode = localStorage.getItem(CLAIM_CODE_STORAGE_KEY);
+        if (storedCode) {
+          console.log('📦 Found claim code in localStorage:', storedCode);
+          claimCode = storedCode;
+        }
+      }
+
+      if (!claimCode) {
+        console.log('❌ No claim code provided (URL or localStorage)');
         setStatus('no-code');
         return;
       }
 
+      // If not authenticated, save code to localStorage and wait
       if (!isLoaded || !isSignedIn) {
-        console.log('⏳ Waiting for auth to load...');
+        console.log('⏳ Not authenticated yet, saving code to localStorage...');
+        localStorage.setItem(CLAIM_CODE_STORAGE_KEY, claimCode);
         return;
       }
 
@@ -38,6 +54,10 @@ export default function ClaimScreen() {
         const data = await backend.hub.claim({ claimCode });
 
         console.log('✅ Claim successful:', data);
+
+        // Clear localStorage on success
+        localStorage.removeItem(CLAIM_CODE_STORAGE_KEY);
+
         setStatus('success');
 
         setTimeout(() => {
@@ -46,13 +66,17 @@ export default function ClaimScreen() {
         }, 2000);
       } catch (err: any) {
         console.error('❌ Claim failed:', err);
+
+        // Clear localStorage on error too
+        localStorage.removeItem(CLAIM_CODE_STORAGE_KEY);
+
         setErrorMessage(err.message || 'Erro ao resgatar código. Tente novamente.');
         setStatus('error');
       }
     };
 
     processClaim();
-  }, [claimCode, isLoaded, isSignedIn, navigate, backend]);
+  }, [claimCodeFromUrl, isLoaded, isSignedIn, navigate, backend]);
 
   // Loading state
   if (status === 'loading') {
