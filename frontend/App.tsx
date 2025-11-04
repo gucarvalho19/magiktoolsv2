@@ -83,7 +83,7 @@ function AppContent() {
 
   useEffect(() => {
     document.title = 'MagikTools';
-    
+
     const setFavicon = () => {
       const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
       link.type = 'image/png';
@@ -91,7 +91,7 @@ function AppContent() {
       link.href = '/assets/logo/favicon.png';
       document.getElementsByTagName('head')[0].appendChild(link);
     };
-    
+
     setFavicon();
   }, []);
 
@@ -107,12 +107,22 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
+          {/* Claim route - requires auth but NOT membership */}
           <Route
             path="/claim"
             element={
-              <ProtectedRoute>
+              DISABLE_AUTH ? (
                 <ClaimScreen />
-              </ProtectedRoute>
+              ) : (
+                <>
+                  <SignedIn>
+                    <ClaimScreen />
+                  </SignedIn>
+                  <SignedOut>
+                    <RedirectToSignIn />
+                  </SignedOut>
+                </>
+              )
             }
           />
           <Route
