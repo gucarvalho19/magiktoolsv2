@@ -9,7 +9,7 @@
   "dependencies": {
     "@clerk/backend": "^1.27.0",
     "encore.dev": "^1.50.6",
-    "svix": "^1.40.0"
+    "svix": "^1.81.0"
   },
   "devDependencies": {
     "typescript": "^5.8.3"
