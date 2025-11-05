@@ -42,7 +42,6 @@ export const claim = api<ClaimRequest, ClaimResponse>(
       `;
 
       if (existing) {
-        await tx.rollback();
         throw APIError.alreadyExists("user already has a claimed membership");
       }
 
@@ -62,12 +61,10 @@ export const claim = api<ClaimRequest, ClaimResponse>(
         `;
 
         if (!membership) {
-          await tx.rollback();
           throw APIError.notFound("invalid or already used claim code");
         }
 
         if (membership.claim_code_used_at) {
-          await tx.rollback();
           throw APIError.alreadyExists("claim code already used");
         }
 
@@ -96,7 +93,6 @@ export const claim = api<ClaimRequest, ClaimResponse>(
         `;
 
         if (!membership) {
-          await tx.rollback();
           throw APIError.notFound("no unclaimed membership found for this email");
         }
 
