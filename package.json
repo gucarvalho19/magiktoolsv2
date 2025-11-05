@@ -6,8 +6,5 @@
   "workspaces": [
     "backend",
     "frontend"
-  ],
-  "dependencies": {
-    "svix": "^1.40.0"
-  }
+  ]
 }
