@@ -55,11 +55,11 @@ export const claim = api<ClaimRequest, ClaimResponse>(
 
         log.info("🔍 Searching for claim code", { code, userId: auth.userID });
 
-        // First, check if the code exists at all
+        // First, check if the code exists at all (case-insensitive)
         const codeCheck = await tx.queryRow<{ id: number; user_id: string | null; status: string; claim_code_used_at: string | null }>`
           SELECT id, user_id, status, claim_code_used_at
           FROM memberships
-          WHERE claim_code = ${code}
+          WHERE UPPER(claim_code) = ${code}
         `;
 
         log.info("🔍 Code check result", {
@@ -75,7 +75,7 @@ export const claim = api<ClaimRequest, ClaimResponse>(
         membership = await tx.queryRow<{ id: number; status: string; email: string; claim_code_used_at?: string }>`
           SELECT id, status, email, claim_code_used_at
           FROM memberships
-          WHERE claim_code = ${code} AND user_id IS NULL
+          WHERE UPPER(claim_code) = ${code} AND user_id IS NULL
           FOR UPDATE
         `;
 

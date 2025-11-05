@@ -35,7 +35,7 @@ export const checkClaimByCode = api<CheckByCodeRequest, CheckByCodeResponse>(
     }>`
       SELECT id, email, claim_code, user_id, status, claim_code_used_at, purchased_at
       FROM memberships
-      WHERE claim_code = ${code}
+      WHERE UPPER(claim_code) = ${code}
       LIMIT 1
     `;
 

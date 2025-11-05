@@ -31,9 +31,9 @@ export const createTestClaim = api<CreateTestClaimRequest, CreateTestClaimRespon
     const tx = await db.begin();
 
     try {
-      // Check if claim code already exists
+      // Check if claim code already exists (case-insensitive)
       const existingCode = await tx.queryRow<{ id: number }>`
-        SELECT id FROM memberships WHERE claim_code = ${claimCode}
+        SELECT id FROM memberships WHERE UPPER(claim_code) = ${claimCode}
       `;
 
       if (existingCode) {
