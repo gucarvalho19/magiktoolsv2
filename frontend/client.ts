@@ -99,6 +99,7 @@ export namespace auth {
  * Import the endpoint handlers to derive the types for the client.
  */
 import { adminCreateMembershipRecord as api_hub_admin_create_membership_adminCreateMembershipRecord } from "~backend/hub/admin_create_membership";
+import { createTestClaim as api_hub_admin_create_test_claim_createTestClaim } from "~backend/hub/admin_create_test_claim";
 import {
     adminMemberships as api_hub_admin_memberships_adminMemberships,
     adminPromoteNext as api_hub_admin_memberships_adminPromoteNext,
@@ -106,6 +107,7 @@ import {
     revokeMembership as api_hub_admin_memberships_revokeMembership
 } from "~backend/hub/admin_memberships";
 import { claim as api_hub_claim_claim } from "~backend/hub/claim";
+import { checkClaimByCode as api_hub_debug_check_claim_by_code_checkClaimByCode } from "~backend/hub/debug_check_claim_by_code";
 import { checkClaimCode as api_hub_debug_check_claim_code_checkClaimCode } from "~backend/hub/debug_check_claim_code";
 import { whoami as api_hub_debug_whoami_whoami } from "~backend/hub/debug_whoami";
 import { findMembership as api_hub_find_membership_findMembership } from "~backend/hub/find_membership";
@@ -123,8 +125,10 @@ export namespace hub {
             this.adminCreateMembershipRecord = this.adminCreateMembershipRecord.bind(this)
             this.adminMemberships = this.adminMemberships.bind(this)
             this.adminPromoteNext = this.adminPromoteNext.bind(this)
+            this.checkClaimByCode = this.checkClaimByCode.bind(this)
             this.checkClaimCode = this.checkClaimCode.bind(this)
             this.claim = this.claim.bind(this)
+            this.createTestClaim = this.createTestClaim.bind(this)
             this.findMembership = this.findMembership.bind(this)
             this.generateResponse = this.generateResponse.bind(this)
             this.getMembership = this.getMembership.bind(this)
@@ -159,6 +163,15 @@ export namespace hub {
         }
 
         /**
+         * Temporary debug endpoint to check claim code status
+         */
+        public async checkClaimByCode(params: RequestType<typeof api_hub_debug_check_claim_by_code_checkClaimByCode>): Promise<ResponseType<typeof api_hub_debug_check_claim_by_code_checkClaimByCode>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/debug/check-claim-by-code`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_debug_check_claim_by_code_checkClaimByCode>
+        }
+
+        /**
          * Temporary debug endpoint to check what's in the database
          */
         public async checkClaimCode(params: RequestType<typeof api_hub_debug_check_claim_code_checkClaimCode>): Promise<ResponseType<typeof api_hub_debug_check_claim_code_checkClaimCode>> {
@@ -171,6 +184,15 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/claim`, {method: "POST", body: JSON.stringify(params)})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_claim_claim>
+        }
+
+        /**
+         * Admin endpoint to create a test membership with a claim code
+         */
+        public async createTestClaim(params: RequestType<typeof api_hub_admin_create_test_claim_createTestClaim>): Promise<ResponseType<typeof api_hub_admin_create_test_claim_createTestClaim>> {
+            // Now make the actual call to the API
+            const resp = await this.baseClient.callTypedAPI(`/admin/create-test-claim`, {method: "POST", body: JSON.stringify(params)})
+            return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_create_test_claim_createTestClaim>
         }
 
         /**
