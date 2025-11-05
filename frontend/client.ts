@@ -125,6 +125,8 @@ export namespace hub {
             this.getMembership = this.getMembership.bind(this)
             this.linkMembership = this.linkMembership.bind(this)
             this.revokeMembership = this.revokeMembership.bind(this)
+            this.webhookClerk = this.webhookClerk.bind(this)
+            this.webhookClerkDebug = this.webhookClerkDebug.bind(this)
             this.webhookKiwify = this.webhookKiwify.bind(this)
             this.webhookKiwifyDebug = this.webhookKiwifyDebug.bind(this)
             this.whoami = this.whoami.bind(this)
@@ -189,6 +191,36 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/_admin/memberships/${encodeURIComponent(params.membershipId)}/revoke`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_revokeMembership>
+        }
+
+        /**
+         * Webhook endpoint para receber eventos do Clerk
+         * Eventos suportados:
+         * - user.created: Usuário criado no Clerk
+         * - user.updated: Usuário atualizado no Clerk
+         * - user.deleted: Usuário deletado no Clerk (PRINCIPAL CASO DE USO)
+         * 
+         * Endpoint: POST /webhooks/clerk
+         * 
+         * Configuração no Clerk Dashboard:
+         * 1. Acesse https://dashboard.clerk.com
+         * 2. Navegue até "Webhooks" no menu lateral
+         * 3. Clique em "Add Endpoint"
+         * 4. Configure a URL: https://seu-dominio.com/webhooks/clerk
+         * 5. Selecione os eventos: user.deleted (obrigatório), user.created, user.updated (opcionais)
+         * 6. Copie o "Signing Secret" e configure via: encore secret set --type dev ClerkWebhookSecret
+         */
+        public async webhookClerk(options: PickMethods<"POST"> = {}): Promise<globalThis.Response> {
+            options.method ||= "POST";
+            return this.baseClient.callAPI(`/webhooks/clerk`, options)
+        }
+
+        /**
+         * Endpoint de debug para testar configuração do webhook
+         * Retorna informações sobre a rota e configuração
+         */
+        public async webhookClerkDebug(): Promise<void> {
+            await this.baseClient.callTypedAPI(`/webhooks/clerk/_debug`, {method: "GET", body: undefined})
         }
 
         public async webhookKiwify(options: PickMethods<"POST"> = {}): Promise<globalThis.Response> {
