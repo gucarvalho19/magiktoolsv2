@@ -12,8 +12,9 @@ Foi implementado um webhook endpoint que recebe eventos do Clerk e processa auto
 
 ## 🔧 Arquivos Modificados/Criados
 
-1. **`backend/hub/webhook_clerk.ts`** - Novo endpoint de webhook
+1. **`backend/hub/webhook_clerk.ts`** - Novo endpoint de webhook com idempotência
 2. **`backend/package.json`** - Adicionada dependência `svix` para validação de assinaturas
+3. **`backend/db/migrations/003_create_webhook_events.up.sql`** - Nova tabela para rastreamento de eventos processados
 
 ## 📝 Passos de Configuração
 
@@ -152,6 +153,68 @@ Quando um usuário é deletado no Clerk Dashboard:
 - **`user.created`**: Apenas logado, nenhuma ação tomada
 - **`user.updated`**: Apenas logado, nenhuma ação tomada
 
+## 🔄 Idempotência e Resiliência
+
+### Garantia de Idempotência
+
+O webhook implementa **idempotência completa** usando a tabela `webhook_events`:
+
+1. ✅ **Cada evento tem ID único** (`svix-id`)
+2. ✅ **Verifica se já processou** antes de executar qualquer ação
+3. ✅ **Armazena payload completo** para auditoria e debug
+4. ✅ **Previne duplicação** mesmo com retries do Clerk
+
+```sql
+-- Exemplo de evento armazenado
+SELECT * FROM webhook_events WHERE webhook_id = 'msg_xxx';
+-- webhook_id  | event_type    | processed_at | payload
+-- msg_xxx     | user.deleted  | 2025-11-05   | {...}
+```
+
+**Por que isso é importante?**
+- Se o Clerk fizer retry (por falha de rede, timeout, etc.), o evento **não será processado duas vezes**
+- Se o banco de dados falhar após processar mas antes de retornar 200, o retry será seguro
+- Você pode consultar `webhook_events` para debug e auditoria completa
+
+### Códigos de Resposta HTTP
+
+O webhook usa códigos HTTP corretamente para garantir resiliência:
+
+| Código | Cenário | Clerk fará retry? | Exemplo |
+|--------|---------|-------------------|---------|
+| **200 OK** | ✅ Processamento bem-sucedido | ❌ Não | Membership desvinculada com sucesso |
+| **200 OK** | ✅ Evento já processado (idempotência) | ❌ Não | `svix-id` já existe em `webhook_events` |
+| **400 Bad Request** | ❌ Erro de validação | ❌ Não | Assinatura inválida, headers faltando |
+| **500 Internal Server Error** | ⚠️ Erro recuperável | ✅ **SIM** | Falha de DB, timeout, erro de rede |
+
+**Comportamento de Retry do Clerk:**
+- ✅ Retry automático com **exponential backoff** (segundos → minutos → horas)
+- ✅ Continua tentando até receber **200 OK**
+- ✅ Máximo de **~65 tentativas ao longo de ~3 dias**
+
+**Por que isso é crítico?**
+
+Imagine este cenário SEM a correção:
+
+1. 🔴 Usuário deleta conta no Clerk
+2. 🔴 Webhook recebe evento `user.deleted`
+3. 🔴 **Banco de dados está temporariamente offline**
+4. 🔴 Handler lança exceção
+5. 🔴 **Webhook retorna 200 OK** ❌ (bug antigo!)
+6. 🔴 Clerk pensa "sucesso" e **nunca mais tenta**
+7. 🔴 **Membership permanece ativa para sempre** 💥
+
+Com a correção:
+
+1. ✅ Usuário deleta conta no Clerk
+2. ✅ Webhook recebe evento `user.deleted`
+3. ⚠️ **Banco de dados está temporariamente offline**
+4. ⚠️ Handler lança exceção
+5. ✅ **Webhook retorna 500** ✅
+6. ✅ Clerk faz **retry após 5 segundos**
+7. ✅ DB voltou ao normal
+8. ✅ **Membership desvinculada com sucesso** 🎉
+
 ## 📊 Logs e Monitoramento
 
 O webhook registra informações detalhadas nos logs do Encore:
@@ -223,14 +286,44 @@ O Svix automaticamente rejeita requisições com timestamps muito antigos (> 5 m
 2. Reconfigure usando `encore secret set --type dev ClerkWebhookSecret`
 3. Certifique-se de que não há espaços extras ao colar o secret
 
+### Webhook retorna 500 Internal Server Error
+
+**Causa**: Erro recuperável durante o processamento (ex: falha temporária de banco de dados).
+
+**Solução**: Isso é **comportamento esperado**! O Clerk fará retry automaticamente:
+1. Verifique os logs: `encore logs` para identificar a causa raiz
+2. Aguarde o retry automático do Clerk (exponential backoff)
+3. Se o problema persistir, corrija a causa raiz (ex: reconecte o DB)
+4. Verifique `webhook_events` para confirmar quando foi processado com sucesso
+
 ### Webhook retorna 200 mas não processa
 
-**Causa**: Possível erro interno na lógica de processamento.
+**Causa 1**: Evento já foi processado anteriormente (idempotência).
+
+**Solução**: Verifique a tabela `webhook_events`:
+```sql
+SELECT * FROM webhook_events WHERE event_type = 'user.deleted' ORDER BY processed_at DESC LIMIT 10;
+```
+
+**Causa 2**: Usuário não tinha membership vinculada.
+
+**Solução**: Verifique os logs para a mensagem "Nenhuma membership encontrada para usuário deletado".
+
+**Causa 3**: Erro interno na lógica (não deveria retornar 200, deveria retornar 500).
 
 **Solução**:
 1. Verifique os logs: `encore logs`
 2. Procure por erros com `log.error`
-3. Verifique se a membership existe no banco de dados
+3. Se encontrar erro, reporte como bug (webhook deveria ter retornado 500)
+
+### Webhook processado duas vezes (membership duplicada)
+
+**Causa**: Improvável, mas possível se houver race condition entre verificação de idempotência e inserção.
+
+**Solução**:
+1. Verifique `webhook_events` para o `svix-id` duplicado
+2. Verifique `admin_actions` para ações duplicadas
+3. A constraint UNIQUE em `webhook_events.webhook_id` previne isso na maioria dos casos
 
 ### Usuário deletado mas próximo da waitlist não foi promovido
 
