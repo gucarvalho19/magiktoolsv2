@@ -98,9 +98,28 @@ export const webhookClerk = api.raw(
       log.info("Webhook Clerk recebido", {
         eventType,
         userId,
+        svixId,
         userEmail: evt.data.email_addresses?.[0]?.email_address,
       });
 
+      // Verificar idempotência: já processamos este evento?
+      const existingEvent = await db.queryRow<{ id: number }>`
+        SELECT id FROM webhook_events WHERE webhook_id = ${svixId}
+      `;
+
+      if (existingEvent) {
+        log.info("Evento webhook já processado anteriormente (idempotência)", {
+          svixId,
+          eventType,
+          userId,
+        });
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ status: "ok", message: "Already processed" }));
+        return;
+      }
+
+      // Processar o evento
       switch (eventType) {
         case "user.deleted":
           await handleUserDeleted(userId);
@@ -120,6 +139,14 @@ export const webhookClerk = api.raw(
           log.info("Evento Clerk não tratado", { eventType, userId });
       }
 
+      // Registrar evento como processado (idempotência)
+      await db.exec`
+        INSERT INTO webhook_events (webhook_id, event_type, payload, processed_at)
+        VALUES (${svixId}, ${eventType}, ${rawBody}, NOW())
+      `;
+
+      log.info("Webhook processado com sucesso", { svixId, eventType, userId });
+
       res.statusCode = 200;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ status: "ok" }));
@@ -127,12 +154,17 @@ export const webhookClerk = api.raw(
       const errorDetails = err instanceof Error
         ? { message: err.message, stack: err.stack, name: err.name }
         : { error: String(err) };
-      log.error("Erro no webhook Clerk", errorDetails);
+      log.error("Erro ao processar webhook Clerk", errorDetails);
 
-      // Retornar 200 para evitar retry infinito do Clerk
-      res.statusCode = 200;
+      // IMPORTANTE: Retornar 500 para que o Clerk faça retry
+      // Apenas retornamos 200 quando o processamento foi bem-sucedido
+      // Erros de validação (400) já foram tratados acima
+      res.statusCode = 500;
       res.setHeader("content-type", "application/json");
-      res.end(JSON.stringify({ status: "error", message: "Internal error" }));
+      res.end(JSON.stringify({
+        status: "error",
+        message: "Internal server error - webhook will be retried"
+      }));
     }
   }
 );
