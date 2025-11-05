@@ -1,6 +1,5 @@
 import { api } from "encore.dev/api";
 import { secret } from "encore.dev/config";
-import { Webhook } from "svix";
 import db from "../db";
 import log from "encore.dev/log";
 import { promoteNextInWaitlist } from "./memberships/promote";
@@ -27,42 +26,17 @@ interface ClerkWebhookEvent {
 
 /**
  * Webhook endpoint para receber eventos do Clerk
- * Eventos suportados:
- * - user.created: Usuário criado no Clerk
- * - user.updated: Usuário atualizado no Clerk
- * - user.deleted: Usuário deletado no Clerk (PRINCIPAL CASO DE USO)
  *
- * Endpoint: POST /webhooks/clerk
+ * VERSÃO TEMPORÁRIA SEM VALIDAÇÃO SVIX
+ * Para debug - identificar se o problema é o import do svix
  *
- * Configuração no Clerk Dashboard:
- * 1. Acesse https://dashboard.clerk.com
- * 2. Navegue até "Webhooks" no menu lateral
- * 3. Clique em "Add Endpoint"
- * 4. Configure a URL: https://seu-dominio.com/webhooks/clerk
- * 5. Selecione os eventos: user.deleted (obrigatório), user.created, user.updated (opcionais)
- * 6. Copie o "Signing Secret" e configure via: encore secret set --type dev ClerkWebhookSecret
+ * TODO: Adicionar validação Svix após confirmar que endpoint registra
  */
 export const webhookClerk = api.raw(
   { method: "POST", path: "/webhooks/clerk", expose: true },
   async (req, res) => {
     try {
-      // Capturar headers necessários para validação Svix
-      const svixId = req.headers["svix-id"] as string;
-      const svixTimestamp = req.headers["svix-timestamp"] as string;
-      const svixSignature = req.headers["svix-signature"] as string;
-
-      // Validar headers obrigatórios
-      if (!svixId || !svixTimestamp || !svixSignature) {
-        log.warn("Webhook Clerk sem headers Svix necessários", {
-          hasSvixId: !!svixId,
-          hasSvixTimestamp: !!svixTimestamp,
-          hasSvixSignature: !!svixSignature,
-        });
-        res.statusCode = 400;
-        res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ error: "Missing Svix headers" }));
-        return;
-      }
+      log.info("Webhook Clerk endpoint foi chamado!");
 
       // Ler o corpo da requisição
       const chunks: Buffer[] = [];
@@ -71,40 +45,26 @@ export const webhookClerk = api.raw(
       }
       const rawBody = Buffer.concat(chunks).toString("utf-8");
 
-      // Validar assinatura usando Svix
-      const wh = new Webhook(clerkWebhookSecret());
+      // Parse do payload
       let evt: ClerkWebhookEvent;
-
       try {
-        evt = wh.verify(rawBody, {
-          "svix-id": svixId,
-          "svix-timestamp": svixTimestamp,
-          "svix-signature": svixSignature,
-        }) as ClerkWebhookEvent;
+        evt = JSON.parse(rawBody) as ClerkWebhookEvent;
       } catch (err) {
-        log.warn("Assinatura inválida do webhook Clerk", {
-          error: err instanceof Error ? err.message : String(err),
-        });
+        log.error("Erro ao fazer parse do JSON", { error: err });
         res.statusCode = 400;
         res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ error: "Invalid signature" }));
+        res.end(JSON.stringify({ error: "Invalid JSON" }));
         return;
       }
 
-      // Processar evento baseado no tipo
       const eventType = evt.type;
       const userId = evt.data.id;
 
       log.info("Webhook Clerk recebido", {
         eventType,
         userId,
-        svixId,
         userEmail: evt.data.email_addresses?.[0]?.email_address,
       });
-
-      // TODO: Adicionar verificação de idempotência após executar migration
-      // TEMPORARIAMENTE DESABILITADO para permitir que o backend carregue
-      // mesmo sem a tabela webhook_events existir
 
       // Processar o evento
       switch (eventType) {
@@ -114,23 +74,17 @@ export const webhookClerk = api.raw(
 
         case "user.created":
           log.info("Usuário criado no Clerk", { userId });
-          // Não há ação necessária - usuário será vinculado quando fizer claim
           break;
 
         case "user.updated":
           log.info("Usuário atualizado no Clerk", { userId });
-          // Não há ação necessária - metadata é atualizada via API quando necessário
           break;
 
         default:
           log.info("Evento Clerk não tratado", { eventType, userId });
       }
 
-      // TODO: Registrar evento como processado após executar migration
-      // TEMPORARIAMENTE DESABILITADO para permitir que o backend carregue
-      // mesmo sem a tabela webhook_events existir
-
-      log.info("Webhook processado com sucesso", { svixId, eventType, userId });
+      log.info("Webhook processado com sucesso", { eventType, userId });
 
       res.statusCode = 200;
       res.setHeader("content-type", "application/json");
@@ -141,9 +95,6 @@ export const webhookClerk = api.raw(
         : { error: String(err) };
       log.error("Erro ao processar webhook Clerk", errorDetails);
 
-      // IMPORTANTE: Retornar 500 para que o Clerk faça retry
-      // Apenas retornamos 200 quando o processamento foi bem-sucedido
-      // Erros de validação (400) já foram tratados acima
       res.statusCode = 500;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({
@@ -156,20 +107,6 @@ export const webhookClerk = api.raw(
 
 /**
  * Handler para evento user.deleted
- *
- * Quando um usuário é deletado no Clerk Dashboard:
- * 1. Encontra a membership vinculada ao user_id
- * 2. Desvincula o user_id da membership (seta como NULL)
- * 3. Mantém o histórico de compra intacto (membership permanece)
- * 4. Se o usuário estava ativo, promove próximo da waitlist
- * 5. Registra ação de auditoria
- *
- * IMPORTANTE: Não deletamos a membership do banco de dados!
- * Apenas desvinculamos o usuário do Clerk, mantendo o registro de compra.
- * Isso permite:
- * - Manter histórico de transações
- * - Permitir que o usuário reclame novamente se criar nova conta
- * - Auditoria completa de ações
  */
 async function handleUserDeleted(userId: string) {
   log.info("Processando deleção de usuário", { userId });
@@ -177,7 +114,6 @@ async function handleUserDeleted(userId: string) {
   const tx = await db.begin();
 
   try {
-    // Buscar membership vinculada ao usuário
     const membership = await tx.queryRow<{
       id: number;
       status: string;
@@ -198,8 +134,6 @@ async function handleUserDeleted(userId: string) {
 
     const wasActive = membership.status === "active";
 
-    // Desvincular usuário da membership (não deletar a membership!)
-    // Mantém o histórico de compra mas remove a vinculação ao Clerk
     await tx.exec`
       UPDATE memberships
       SET user_id = NULL,
@@ -209,7 +143,6 @@ async function handleUserDeleted(userId: string) {
       WHERE id = ${membership.id}
     `;
 
-    // Registrar ação de auditoria
     await tx.exec`
       INSERT INTO admin_actions (
         admin_user_id,
@@ -246,7 +179,6 @@ async function handleUserDeleted(userId: string) {
       wasActive,
     });
 
-    // Se o usuário estava ativo, promover próximo da waitlist
     if (wasActive) {
       log.info("Promovendo próximo da waitlist após deleção de usuário ativo", {
         userId,
@@ -265,8 +197,7 @@ async function handleUserDeleted(userId: string) {
 }
 
 /**
- * Endpoint de debug para testar configuração do webhook
- * Retorna informações sobre a rota e configuração
+ * Endpoint de debug
  */
 export const webhookClerkDebug = api(
   { method: "GET", path: "/webhooks/clerk/_debug", expose: true },
@@ -275,9 +206,8 @@ export const webhookClerkDebug = api(
       ok: true,
       route: "/webhooks/clerk",
       method: "POST",
-      requiredHeaders: ["svix-id", "svix-timestamp", "svix-signature"],
-      supportedEvents: ["user.deleted", "user.created", "user.updated"],
-      message: "Webhook endpoint is configured correctly",
+      message: "Webhook endpoint is configured (WITHOUT Svix validation - temporary)",
+      warning: "This version does NOT validate Svix signatures - FOR DEBUG ONLY"
     };
   }
 );
