@@ -114,7 +114,6 @@ export const revokeMembership = api<RevokeMembershipRequest, RevokeMembershipRes
       `;
 
       if (!membership) {
-        await tx.rollback();
         throw APIError.notFound("membership not found");
       }
 
@@ -238,12 +237,10 @@ export const linkMembership = api<LinkMembershipRequest, LinkMembershipResponse>
       `;
 
       if (!membership) {
-        await tx.rollback();
         throw APIError.notFound("membership not found");
       }
 
       if (membership.user_id) {
-        await tx.rollback();
         throw APIError.alreadyExists(
           `membership already linked to user ${membership.user_id}`
         );
@@ -258,7 +255,6 @@ export const linkMembership = api<LinkMembershipRequest, LinkMembershipResponse>
       `;
 
       if (existing) {
-        await tx.rollback();
         throw APIError.alreadyExists(
           "user already has a membership linked"
         );
