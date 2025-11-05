@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { Card } from '../ui/card';
@@ -15,10 +15,17 @@ export default function ClaimScreen() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-code'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
   const claimCodeFromUrl = searchParams.get('code');
+  const isProcessingRef = useRef(false); // Prevent duplicate API calls
 
   useEffect(() => {
     const processClaim = async () => {
       console.log('🎫 ClaimScreen useEffect triggered', { claimCodeFromUrl, isLoaded, isSignedIn });
+
+      // Prevent duplicate processing
+      if (isProcessingRef.current) {
+        console.log('⏸️ Already processing claim, skipping...');
+        return;
+      }
 
       // Get claim code from URL or localStorage
       let claimCode = claimCodeFromUrl;
@@ -48,6 +55,7 @@ export default function ClaimScreen() {
       console.log('🎫 Processing claim with code:', claimCode);
 
       try {
+        isProcessingRef.current = true; // Mark as processing
         setStatus('loading');
         console.log('📡 Calling backend.hub.claim...');
 
@@ -72,6 +80,8 @@ export default function ClaimScreen() {
 
         setErrorMessage(err.message || 'Erro ao resgatar código. Tente novamente.');
         setStatus('error');
+      } finally {
+        isProcessingRef.current = false; // Reset processing flag
       }
     };
 
