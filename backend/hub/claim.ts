@@ -53,6 +53,25 @@ export const claim = api<ClaimRequest, ClaimResponse>(
         const code = req.claimCode.toUpperCase().trim().replace(/\s/g, '');
         claimMethod = 'claim_code';
 
+        log.info("🔍 Searching for claim code", { code, userId: auth.userID });
+
+        // First, check if the code exists at all
+        const codeCheck = await tx.queryRow<{ id: number; user_id: string | null; status: string; claim_code_used_at: string | null }>`
+          SELECT id, user_id, status, claim_code_used_at
+          FROM memberships
+          WHERE claim_code = ${code}
+        `;
+
+        log.info("🔍 Code check result", {
+          found: !!codeCheck,
+          codeCheck: codeCheck ? {
+            id: codeCheck.id,
+            userId: codeCheck.user_id,
+            status: codeCheck.status,
+            claimCodeUsedAt: codeCheck.claim_code_used_at
+          } : null
+        });
+
         membership = await tx.queryRow<{ id: number; status: string; email: string; claim_code_used_at?: string }>`
           SELECT id, status, email, claim_code_used_at
           FROM memberships
@@ -61,7 +80,14 @@ export const claim = api<ClaimRequest, ClaimResponse>(
         `;
 
         if (!membership) {
-          throw APIError.notFound("invalid or already used claim code");
+          log.error("❌ Claim code not found or already linked", { code, userId: auth.userID });
+
+          // If code exists but couldn't be claimed, it's already linked to a user
+          if (codeCheck) {
+            throw APIError.alreadyExists("this claim code is already linked to another user");
+          }
+
+          throw APIError.notFound("invalid claim code");
         }
 
         if (membership.claim_code_used_at) {
