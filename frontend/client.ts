@@ -194,12 +194,7 @@ export namespace hub {
         }
 
         /**
-         * Webhook endpoint para receber eventos do Clerk
-         * 
-         * VERSÃO TEMPORÁRIA SEM VALIDAÇÃO SVIX
-         * Para debug - identificar se o problema é o import do svix
-         * 
-         * TODO: Adicionar validação Svix após confirmar que endpoint registra
+         * Webhook endpoint minimalista para testar registro
          */
         public async webhookClerk(options: PickMethods<"POST"> = {}): Promise<globalThis.Response> {
             options.method ||= "POST";
@@ -207,10 +202,11 @@ export namespace hub {
         }
 
         /**
-         * Endpoint de debug
+         * Endpoint de debug minimalista
          */
-        public async webhookClerkDebug(): Promise<void> {
-            await this.baseClient.callTypedAPI(`/webhooks/clerk/_debug`, {method: "GET", body: undefined})
+        public async webhookClerkDebug(options: PickMethods<"GET"> = {}): Promise<globalThis.Response> {
+            options.method ||= "GET";
+            return this.baseClient.callAPI(`/webhooks/clerk/_debug`, options)
         }
 
         public async webhookKiwify(options: PickMethods<"POST"> = {}): Promise<globalThis.Response> {
