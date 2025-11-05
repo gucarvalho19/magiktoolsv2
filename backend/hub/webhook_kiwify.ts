@@ -11,7 +11,7 @@ const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
 
 const kiwifySecret = secret("KiwifySecret");
 const debug = process.env.DEBUG_KIWIFY_WEBHOOK === "true";
-const HUB_CAP = 20;
+const HUB_CAP = 50;
 
 interface KiwifyOrderData {
   webhook_event_type: string;

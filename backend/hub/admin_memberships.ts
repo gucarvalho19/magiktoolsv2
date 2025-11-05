@@ -82,7 +82,7 @@ export const adminMemberships = api<void, AdminMembershipsResponse>(
         canceled: stats?.canceled ?? 0,
         refunded: stats?.refunded ?? 0,
         total: stats?.total ?? 0,
-        cap: 20,
+        cap: 50,
       },
       memberships,
     };
