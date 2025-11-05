@@ -195,20 +195,11 @@ export namespace hub {
 
         /**
          * Webhook endpoint para receber eventos do Clerk
-         * Eventos suportados:
-         * - user.created: Usuário criado no Clerk
-         * - user.updated: Usuário atualizado no Clerk
-         * - user.deleted: Usuário deletado no Clerk (PRINCIPAL CASO DE USO)
          * 
-         * Endpoint: POST /webhooks/clerk
+         * VERSÃO TEMPORÁRIA SEM VALIDAÇÃO SVIX
+         * Para debug - identificar se o problema é o import do svix
          * 
-         * Configuração no Clerk Dashboard:
-         * 1. Acesse https://dashboard.clerk.com
-         * 2. Navegue até "Webhooks" no menu lateral
-         * 3. Clique em "Add Endpoint"
-         * 4. Configure a URL: https://seu-dominio.com/webhooks/clerk
-         * 5. Selecione os eventos: user.deleted (obrigatório), user.created, user.updated (opcionais)
-         * 6. Copie o "Signing Secret" e configure via: encore secret set --type dev ClerkWebhookSecret
+         * TODO: Adicionar validação Svix após confirmar que endpoint registra
          */
         public async webhookClerk(options: PickMethods<"POST"> = {}): Promise<globalThis.Response> {
             options.method ||= "POST";
@@ -216,8 +207,7 @@ export namespace hub {
         }
 
         /**
-         * Endpoint de debug para testar configuração do webhook
-         * Retorna informações sobre a rota e configuração
+         * Endpoint de debug
          */
         public async webhookClerkDebug(): Promise<void> {
             await this.baseClient.callTypedAPI(`/webhooks/clerk/_debug`, {method: "GET", body: undefined})
