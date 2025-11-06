@@ -48,13 +48,15 @@ jobs:
         working-directory: ./frontend
         run: bunx vite build
 
-      - name: Install backend dependencies
-        working-directory: ./backend
-        run: bun install
-
-      - name: Check TypeScript (backend)
-        working-directory: ./backend
-        run: npx tsc --noEmit
+      # Backend checks disabled - Encore requires special setup
+      # Backend is validated during Encore deployment
+      # - name: Install backend dependencies
+      #   working-directory: ./backend
+      #   run: bun install
+      #
+      # - name: Check TypeScript (backend)
+      #   working-directory: ./backend
+      #   run: npx tsc --noEmit
 
   pr-title-check:
     runs-on: ubuntu-latest
