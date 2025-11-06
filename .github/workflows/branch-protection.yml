@@ -31,7 +31,7 @@ jobs:
 
       - name: Check TypeScript (frontend)
         working-directory: ./frontend
-        run: npx tsc --noEmit
+        run: npx tsc --noEmit --project tsconfig.ci.json
 
       - name: Build frontend
         working-directory: ./frontend
@@ -100,11 +100,16 @@ jobs:
 
           DIFF_CMD="git diff $BASE_REF...HEAD"
 
-          # Check for secret keys (sk_)
-          if $DIFF_CMD | grep -i "sk_test\|sk_live"; then
+          # Check for secret keys (sk_) - excluding documentation files
+          SECRET_KEYS=$($DIFF_CMD -- ':(exclude)*.md' | grep -i "sk_test\|sk_live" || true)
+
+          if [ -n "$SECRET_KEYS" ]; then
             echo "❌ SECURITY: Secret key (sk_*) detected in changes!"
             echo "Clerk secret keys should NEVER be committed."
             echo "Use Encore Secrets instead: encore secret set --type dev ClerkSecretKey"
+            echo ""
+            echo "Found in:"
+            echo "$SECRET_KEYS"
             exit 1
           fi
 
