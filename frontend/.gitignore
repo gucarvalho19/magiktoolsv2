@@ -11,8 +11,14 @@ dist/
 dist-ssr/
 
 # Environment variables
+# Note: .env files are currently tracked for public Clerk keys
+# Future .env files will be ignored to prevent accidental secret exposure
 .env.local
 .env.*.local
+# Uncomment below to ignore all .env files (except .env.example)
+# .env
+# .env.*
+# !.env.example
 
 # Editor directories
 .vscode/
