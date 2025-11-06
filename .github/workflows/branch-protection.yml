@@ -1,0 +1,153 @@
+name: Branch Protection Simulation
+
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check if pushing directly to protected branch
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+        run: |
+          echo "❌ Direct push to ${{ github.ref }} is not allowed!"
+          echo "Please create a Pull Request instead."
+          echo ""
+          echo "Workflow:"
+          echo "  1. Create feature branch: git checkout -b feature/my-feature"
+          echo "  2. Make changes and commit"
+          echo "  3. Push: git push origin feature/my-feature"
+          echo "  4. Create Pull Request on GitHub"
+          exit 1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: bun install
+
+      - name: Check TypeScript (frontend)
+        working-directory: ./frontend
+        run: npx tsc --noEmit
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: bunx vite build
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: bun install
+
+      - name: Check TypeScript (backend)
+        working-directory: ./backend
+        run: npx tsc --noEmit
+
+  pr-title-check:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Check PR title format
+        run: |
+          PR_TITLE="${{ github.event.pull_request.title }}"
+
+          if ! echo "$PR_TITLE" | grep -qE "^(feat|fix|docs|style|refactor|test|chore|perf):"; then
+            echo "❌ PR title must follow Conventional Commits format"
+            echo ""
+            echo "Format: <type>: <description>"
+            echo ""
+            echo "Valid types:"
+            echo "  - feat:     New feature"
+            echo "  - fix:      Bug fix"
+            echo "  - docs:     Documentation"
+            echo "  - style:    Formatting"
+            echo "  - refactor: Code refactoring"
+            echo "  - test:     Tests"
+            echo "  - chore:    Maintenance"
+            echo "  - perf:     Performance"
+            echo ""
+            echo "Example: 'feat: add presell builder tool'"
+            exit 1
+          fi
+
+          echo "✅ PR title format is valid: $PR_TITLE"
+
+  security-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for exposed secrets
+        run: |
+          echo "🔍 Checking for accidentally exposed secrets..."
+
+          # Check for secret keys (sk_)
+          if git diff origin/${{ github.base_ref }}...HEAD | grep -i "sk_test\|sk_live"; then
+            echo "❌ SECURITY: Secret key (sk_*) detected in changes!"
+            echo "Clerk secret keys should NEVER be committed."
+            echo "Use Encore Secrets instead: encore secret set --type dev ClerkSecretKey"
+            exit 1
+          fi
+
+          # Check for common secret patterns
+          if git diff origin/${{ github.base_ref }}...HEAD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*="; then
+            echo "⚠️  WARNING: Potential secret detected in changes"
+            echo "Please review the diff to ensure no secrets are exposed"
+            echo ""
+            git diff origin/${{ github.base_ref }}...HEAD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*=" || true
+            exit 1
+          fi
+
+          echo "✅ No secrets detected in changes"
+
+  lint-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for console.log
+        run: |
+          echo "🔍 Checking for console.log statements..."
+
+          # Find console.log in TypeScript/JavaScript files (excluding comments)
+          CONSOLE_LOGS=$(git diff origin/${{ github.base_ref }}...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' | grep "^+" | grep -v "^+++" | grep "console\.log" || true)
+
+          if [ -n "$CONSOLE_LOGS" ]; then
+            echo "⚠️  WARNING: console.log detected in changes"
+            echo "Consider removing debug statements before merging"
+            echo ""
+            echo "$CONSOLE_LOGS"
+            # Don't fail, just warn
+          else
+            echo "✅ No console.log statements found"
+          fi
+
+      - name: Check for TODO comments
+        run: |
+          echo "🔍 Checking for TODO comments in new code..."
+
+          TODOS=$(git diff origin/${{ github.base_ref }}...HEAD | grep "^+" | grep -v "^+++" | grep -iE "TODO|FIXME|XXX|HACK" || true)
+
+          if [ -n "$TODOS" ]; then
+            echo "ℹ️  INFO: TODO comments found in changes"
+            echo "Make sure these are intentional:"
+            echo ""
+            echo "$TODOS"
+          else
+            echo "✅ No TODO comments found"
+          fi
