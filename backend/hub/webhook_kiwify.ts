@@ -11,7 +11,7 @@ const clerkClient = createClerkClient({ secretKey: clerkSecretKey() });
 
 const kiwifySecret = secret("KiwifySecret");
 const debug = process.env.DEBUG_KIWIFY_WEBHOOK === "true";
-const HUB_CAP = 50;
+const HUB_CAP = 20;
 
 interface KiwifyOrderData {
   webhook_event_type: string;
@@ -55,23 +55,6 @@ interface KiwifyOrderData {
     };
   };
   subscription_status?: string;
-}
-
-interface KiwifyAbandonedCheckout {
-  id: string;
-  status: "abandoned";
-  checkout_link: string;
-  email: string;
-  name: string;
-  phone?: string;
-  cnpj?: string;
-  country?: string;
-  product_id: string;
-  product_name: string;
-  offer_name?: string;
-  subscription_plan?: string;
-  store_id: string;
-  created_at: string;
 }
 
 interface KiwifyWebhookPayload {
@@ -156,28 +139,6 @@ export const webhookKiwify = api.raw(
 
       const payload: KiwifyWebhookPayload = JSON.parse(rawBody);
 
-      // Detectar tipo de webhook: checkout abandonado vs evento de pedido
-      const payloadAny = payload as any;
-
-      // Webhook de checkout abandonado (não tem webhook_event_type, mas tem status)
-      if (payloadAny.status === "abandoned" && !payloadAny.webhook_event_type) {
-        const abandonedCheckout = payloadAny as KiwifyAbandonedCheckout;
-        log.info("Checkout abandonado recebido (ignorado)", {
-          checkoutId: abandonedCheckout.id,
-          email: abandonedCheckout.email,
-          productName: abandonedCheckout.product_name,
-          createdAt: abandonedCheckout.created_at,
-        });
-
-        // TODO: Salvar em tabela abandoned_checkouts para futura recuperação
-        // Por enquanto, apenas ignoramos graciosamente
-
-        res.statusCode = 200;
-        res.setHeader("content-type", "application/json");
-        res.end(JSON.stringify({ status: "ok", message: "Abandoned checkout ignored" }));
-        return;
-      }
-
       // Extrair dados do formato correto (wrapper.order ou direto no root)
       const orderData: KiwifyOrderData = payload.order
         ? payload.order
@@ -187,7 +148,7 @@ export const webhookKiwify = api.raw(
       const orderId = orderData.order_id;
       const email = orderData.Customer?.email ?? "";
 
-      // Validação de campos obrigatórios para eventos de pedido
+      // Validação de campos obrigatórios
       if (!eventType) {
         log.error("Webhook sem webhook_event_type", { payload });
         res.statusCode = 400;
@@ -253,10 +214,7 @@ export const webhookKiwify = api.raw(
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ status: "ok" }));
     } catch (err) {
-      const errorDetails = err instanceof Error
-        ? { message: err.message, stack: err.stack, name: err.name, ...err }
-        : { error: String(err) };
-      log.error("Erro no webhook Kiwify", errorDetails);
+      log.error("Erro no webhook Kiwify", { error: err });
       res.statusCode = 200;
       res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ status: "ok" }));
@@ -270,12 +228,9 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     return;
   }
 
-  log.info("Iniciando processamento de order_approved", { orderId, email });
-
   const tx = await db.begin();
 
   try {
-    log.info("Verificando idempotência", { orderId });
     const existing = await tx.queryRow<{ id: number }>`
       SELECT id FROM memberships WHERE kiwify_order_id = ${orderId}
     `;
@@ -286,7 +241,6 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
       return;
     }
 
-    log.info("Contando memberships ativos", { orderId });
     const activeCount = await tx.queryRow<{ count: number }>`
       SELECT COUNT(*) as count FROM memberships WHERE status = 'active'
     `;
@@ -301,83 +255,29 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     // Extract CPF if available (remove formatting)
     const cpf = payload.Customer?.CPF?.replace(/\D/g, '') || null;
 
-    // Calculate activated_at based on vacancy (fix for Encore SQL interpolation)
-    const activatedAt = hasVacancy ? new Date() : null;
-
-    log.info("Preparando inserção", {
-      orderId,
-      email,
-      status,
-      claimCode,
-      hasCpf: !!cpf,
-      activeCount: count,
-      hasVacancy,
-      activatedAt: activatedAt?.toISOString() || null
-    });
-
-    log.info("Executando INSERT INTO memberships", {
-      orderId,
-      email,
-      kiwifyOrderId: orderId,
-      status,
-      claimCode,
-      cpf: cpf || "NULL",
-      hasVacancy: String(hasVacancy),
-      activatedAt: activatedAt?.toISOString() || "NULL"
-    });
-
-    let result;
-    try {
-      result = await tx.queryRow<{ id: number }>`
-        INSERT INTO memberships (
-          email,
-          kiwify_order_id,
-          status,
-          claim_code,
-          customer_cpf,
-          activated_at,
-          purchased_at
-        )
-        VALUES (
-          ${email},
-          ${orderId},
-          ${status},
-          ${claimCode},
-          ${cpf},
-          ${activatedAt},
-          NOW()
-        )
-        RETURNING id
-      `;
-    } catch (insertErr) {
-      // Log insert error with all available details
-      const insertErrObj = insertErr as any;
-      log.error("FALHA NO INSERT", {
-        orderId,
-        errorString: String(insertErr),
-        errorName: insertErrObj?.name,
-        errorMessage: insertErrObj?.message,
-        errorCode: insertErrObj?.code,
-        errorDetail: insertErrObj?.detail,
-        errorConstraint: insertErrObj?.constraint,
-        errorTable: insertErrObj?.table,
-        errorColumn: insertErrObj?.column,
-        errorSchema: insertErrObj?.schema,
-        insertValues: {
-          email,
-          orderId,
-          status,
-          claimCode,
-          cpf: cpf ? "***" : null
-        }
-      });
-      throw insertErr;
-    }
-
-    log.info("Membership inserida com sucesso", { orderId, membershipId: result?.id });
+    const result = await tx.queryRow<{ id: number }>`
+      INSERT INTO memberships (
+        email,
+        kiwify_order_id,
+        status,
+        claim_code,
+        customer_cpf,
+        activated_at,
+        purchased_at
+      )
+      VALUES (
+        ${email},
+        ${orderId},
+        ${status},
+        ${claimCode},
+        ${cpf},
+        CASE WHEN ${hasVacancy} THEN NOW() ELSE NULL END,
+        NOW()
+      )
+      RETURNING id
+    `;
 
     await tx.commit();
-    log.info("Transação commitada", { orderId });
 
     log.info("Pedido aprovado processado", {
       orderId,
@@ -394,17 +294,7 @@ async function handleOrderApproved(orderId: string, email: string, payload: Kiwi
     // await sendClaimCodeEmail(email, claimCode, status);
   } catch (err) {
     await tx.rollback();
-
-    // Extract detailed error information
-    const errObj = err as any;
-    log.error("Erro ao processar order_approved", {
-      orderId,
-      email,
-      errorMessage: errObj?.message || String(err),
-      errorCode: errObj?.code,
-      errorDetail: errObj?.detail,
-      errorConstraint: errObj?.constraint,
-    });
+    log.error("Erro ao processar order_approved", { orderId, error: err });
     throw err;
   }
 }
@@ -479,10 +369,7 @@ async function handleSubscriptionRenewed(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    const errorDetails = err instanceof Error
-      ? { message: err.message, stack: err.stack, name: err.name, ...err }
-      : { error: String(err) };
-    log.error("Erro ao processar subscription_renewed", { orderId, ...errorDetails });
+    log.error("Erro ao processar subscription_renewed", { orderId, error: err });
     throw err;
   }
 }
@@ -523,10 +410,7 @@ async function handleSubscriptionLate(orderId: string) {
     log.info("Assinatura marcada como past_due", { orderId, membershipId: membership.id });
   } catch (err) {
     await tx.rollback();
-    const errorDetails = err instanceof Error
-      ? { message: err.message, stack: err.stack, name: err.name, ...err }
-      : { error: String(err) };
-    log.error("Erro ao processar subscription_late", { orderId, ...errorDetails });
+    log.error("Erro ao processar subscription_late", { orderId, error: err });
     throw err;
   }
 }
@@ -574,10 +458,7 @@ async function handleSubscriptionCanceled(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    const errorDetails = err instanceof Error
-      ? { message: err.message, stack: err.stack, name: err.name, ...err }
-      : { error: String(err) };
-    log.error("Erro ao processar subscription_canceled", { orderId, ...errorDetails });
+    log.error("Erro ao processar subscription_canceled", { orderId, error: err });
     throw err;
   }
 }
@@ -625,10 +506,7 @@ async function handleOrderRefunded(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    const errorDetails = err instanceof Error
-      ? { message: err.message, stack: err.stack, name: err.name, ...err }
-      : { error: String(err) };
-    log.error("Erro ao processar order_refunded", { orderId, ...errorDetails });
+    log.error("Erro ao processar order_refunded", { orderId, error: err });
     throw err;
   }
 }
@@ -676,10 +554,7 @@ async function handleChargeback(orderId: string) {
     }
   } catch (err) {
     await tx.rollback();
-    const errorDetails = err instanceof Error
-      ? { message: err.message, stack: err.stack, name: err.name, ...err }
-      : { error: String(err) };
-    log.error("Erro ao processar chargeback", { orderId, ...errorDetails });
+    log.error("Erro ao processar chargeback", { orderId, error: err });
     throw err;
   }
 }

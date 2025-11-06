@@ -42,6 +42,7 @@ export const claim = api<ClaimRequest, ClaimResponse>(
       `;
 
       if (existing) {
+        await tx.rollback();
         throw APIError.alreadyExists("user already has a claimed membership");
       }
 
@@ -53,30 +54,20 @@ export const claim = api<ClaimRequest, ClaimResponse>(
         const code = req.claimCode.toUpperCase().trim().replace(/\s/g, '');
         claimMethod = 'claim_code';
 
-        // First, check if the code exists at all (case-insensitive)
-        const codeCheck = await tx.queryRow<{ id: number; user_id: string | null; status: string; claim_code_used_at: string | null }>`
-          SELECT id, user_id, status, claim_code_used_at
-          FROM memberships
-          WHERE UPPER(claim_code) = ${code}
-        `;
-
         membership = await tx.queryRow<{ id: number; status: string; email: string; claim_code_used_at?: string }>`
           SELECT id, status, email, claim_code_used_at
           FROM memberships
-          WHERE UPPER(claim_code) = ${code} AND user_id IS NULL
+          WHERE claim_code = ${code} AND user_id IS NULL
           FOR UPDATE
         `;
 
         if (!membership) {
-          // If code exists but couldn't be claimed, it's already linked to a user
-          if (codeCheck) {
-            throw APIError.alreadyExists("this claim code is already linked to another user");
-          }
-
-          throw APIError.notFound("invalid claim code");
+          await tx.rollback();
+          throw APIError.notFound("invalid or already used claim code");
         }
 
         if (membership.claim_code_used_at) {
+          await tx.rollback();
           throw APIError.alreadyExists("claim code already used");
         }
 
@@ -105,6 +96,7 @@ export const claim = api<ClaimRequest, ClaimResponse>(
         `;
 
         if (!membership) {
+          await tx.rollback();
           throw APIError.notFound("no unclaimed membership found for this email");
         }
 

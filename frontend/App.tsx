@@ -17,6 +17,7 @@ import AuthorGenerator from './components/tools/AuthorGenerator';
 import MarqueeGenerator from './components/tools/MarqueeGenerator';
 import CookieMarker from './components/tools/CookieMarker';
 import SalesNotification from './components/tools/SalesNotification';
+import PresellPage from './components/dev/PresellPage';
 import MembershipGate from './components/membership/MembershipGate';
 import MembershipLookup from './components/membership/MembershipLookup';
 import ClaimScreen from './components/membership/ClaimScreen';
@@ -83,7 +84,7 @@ function AppContent() {
 
   useEffect(() => {
     document.title = 'MagikTools';
-
+    
     const setFavicon = () => {
       const link = document.querySelector("link[rel*='icon']") as HTMLLinkElement || document.createElement('link');
       link.type = 'image/png';
@@ -91,7 +92,7 @@ function AppContent() {
       link.href = '/assets/logo/favicon.png';
       document.getElementsByTagName('head')[0].appendChild(link);
     };
-
+    
     setFavicon();
   }, []);
 
@@ -107,22 +108,20 @@ function AppContent() {
               </ProtectedRoute>
             }
           />
-          {/* Claim route - requires auth but NOT membership */}
+          <Route
+            path="/dev/presell"
+            element={
+              <ProtectedRoute>
+                <PresellPage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/claim"
             element={
-              DISABLE_AUTH ? (
+              <ProtectedRoute>
                 <ClaimScreen />
-              ) : (
-                <>
-                  <SignedIn>
-                    <ClaimScreen />
-                  </SignedIn>
-                  <SignedOut>
-                    <RedirectToSignIn />
-                  </SignedOut>
-                </>
-              )
+              </ProtectedRoute>
             }
           />
           <Route
