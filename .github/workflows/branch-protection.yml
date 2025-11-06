@@ -123,12 +123,14 @@ jobs:
             exit 1
           fi
 
-          # Check for common secret patterns
-          if $DIFF_CMD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*="; then
+          # Check for common secret patterns (excluding Encore's secret() function)
+          POTENTIAL_SECRETS=$($DIFF_CMD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*=" | grep -v "secret(" || true)
+
+          if [ -n "$POTENTIAL_SECRETS" ]; then
             echo "⚠️  WARNING: Potential secret detected in changes"
             echo "Please review the diff to ensure no secrets are exposed"
             echo ""
-            $DIFF_CMD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*=" || true
+            echo "$POTENTIAL_SECRETS"
             exit 1
           fi
 
