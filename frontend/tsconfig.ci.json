@@ -1,0 +1,20 @@
+{
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "dist",
+    "dist-ssr",
+    "../backend/**/*",
+    "vite.config.ts",
+    "vite-plugin-env-loader.ts"
+  ],
+  "include": [
+    "*.tsx",
+    "*.ts",
+    "components/**/*",
+    "contexts/**/*",
+    "data/**/*",
+    "lib/**/*",
+    "types/**/*"
+  ]
+}
