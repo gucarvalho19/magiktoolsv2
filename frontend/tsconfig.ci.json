@@ -6,7 +6,8 @@
     "dist-ssr",
     "../backend/**/*",
     "vite.config.ts",
-    "vite-plugin-env-loader.ts"
+    "vite-plugin-env-loader.ts",
+    "client.ts"
   ],
   "include": [
     "*.tsx",
