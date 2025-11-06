@@ -90,13 +90,31 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for git diff
 
       - name: Check for exposed secrets
         run: |
           echo "🔍 Checking for accidentally exposed secrets..."
 
+          # For PRs, check diff against base branch
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+
+            # Check if base ref exists
+            if ! git rev-parse --verify "$BASE_REF" > /dev/null 2>&1; then
+              echo "⚠️  Base branch $BASE_REF not found, skipping diff check"
+              exit 0
+            fi
+
+            DIFF_CMD="git diff $BASE_REF...HEAD"
+          else
+            # For pushes, check only the latest commit
+            DIFF_CMD="git diff HEAD~1..HEAD"
+          fi
+
           # Check for secret keys (sk_)
-          if git diff origin/${{ github.base_ref }}...HEAD | grep -i "sk_test\|sk_live"; then
+          if $DIFF_CMD | grep -i "sk_test\|sk_live"; then
             echo "❌ SECURITY: Secret key (sk_*) detected in changes!"
             echo "Clerk secret keys should NEVER be committed."
             echo "Use Encore Secrets instead: encore secret set --type dev ClerkSecretKey"
@@ -104,11 +122,11 @@ jobs:
           fi
 
           # Check for common secret patterns
-          if git diff origin/${{ github.base_ref }}...HEAD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*="; then
+          if $DIFF_CMD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*="; then
             echo "⚠️  WARNING: Potential secret detected in changes"
             echo "Please review the diff to ensure no secrets are exposed"
             echo ""
-            git diff origin/${{ github.base_ref }}...HEAD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*=" || true
+            $DIFF_CMD | grep -iE "password\s*=|api[_-]?key\s*=|secret\s*=" || true
             exit 1
           fi
 
@@ -119,13 +137,31 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch full history for git diff
 
       - name: Check for console.log
         run: |
           echo "🔍 Checking for console.log statements..."
 
+          # For PRs, check diff against base branch
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+
+            # Check if base ref exists
+            if ! git rev-parse --verify "$BASE_REF" > /dev/null 2>&1; then
+              echo "⚠️  Base branch $BASE_REF not found, skipping diff check"
+              exit 0
+            fi
+
+            DIFF_CMD="git diff $BASE_REF...HEAD"
+          else
+            # For pushes, check only the latest commit
+            DIFF_CMD="git diff HEAD~1..HEAD"
+          fi
+
           # Find console.log in TypeScript/JavaScript files (excluding comments)
-          CONSOLE_LOGS=$(git diff origin/${{ github.base_ref }}...HEAD -- '*.ts' '*.tsx' '*.js' '*.jsx' | grep "^+" | grep -v "^+++" | grep "console\.log" || true)
+          CONSOLE_LOGS=$($DIFF_CMD -- '*.ts' '*.tsx' '*.js' '*.jsx' | grep "^+" | grep -v "^+++" | grep "console\.log" || true)
 
           if [ -n "$CONSOLE_LOGS" ]; then
             echo "⚠️  WARNING: console.log detected in changes"
@@ -141,7 +177,23 @@ jobs:
         run: |
           echo "🔍 Checking for TODO comments in new code..."
 
-          TODOS=$(git diff origin/${{ github.base_ref }}...HEAD | grep "^+" | grep -v "^+++" | grep -iE "TODO|FIXME|XXX|HACK" || true)
+          # For PRs, check diff against base branch
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_REF="origin/${{ github.base_ref }}"
+
+            # Check if base ref exists
+            if ! git rev-parse --verify "$BASE_REF" > /dev/null 2>&1; then
+              echo "⚠️  Base branch $BASE_REF not found, skipping diff check"
+              exit 0
+            fi
+
+            DIFF_CMD="git diff $BASE_REF...HEAD"
+          else
+            # For pushes, check only the latest commit
+            DIFF_CMD="git diff HEAD~1..HEAD"
+          fi
+
+          TODOS=$($DIFF_CMD | grep "^+" | grep -v "^+++" | grep -iE "TODO|FIXME|XXX|HACK" || true)
 
           if [ -n "$TODOS" ]; then
             echo "ℹ️  INFO: TODO comments found in changes"
