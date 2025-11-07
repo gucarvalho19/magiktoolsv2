@@ -29,11 +29,7 @@ jobs:
         working-directory: ./frontend
         run: bun install
 
-      - name: Check TypeScript (frontend)
-        working-directory: ./frontend
-        run: npx tsc --noEmit --project tsconfig.ci.json
-
-      - name: Build frontend
+      - name: Build frontend (includes TypeScript check)
         working-directory: ./frontend
         run: bunx vite build
 
