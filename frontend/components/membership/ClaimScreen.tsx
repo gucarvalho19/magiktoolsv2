@@ -1,11 +1,9 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@clerk/clerk-react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { useBackend } from '../../lib/useBackend';
-
-const CLAIM_CODE_STORAGE_KEY = 'pending_claim_code';
 
 export default function ClaimScreen() {
   const navigate = useNavigate();
@@ -14,58 +12,32 @@ export default function ClaimScreen() {
   const backend = useBackend();
   const [status, setStatus] = useState<'loading' | 'success' | 'error' | 'no-code'>('loading');
   const [errorMessage, setErrorMessage] = useState<string>('');
-  const claimCodeFromUrl = searchParams.get('code');
-  const isProcessingRef = useRef(false); // Prevent duplicate API calls
+  const claimCode = searchParams.get('code');
 
   useEffect(() => {
     const processClaim = async () => {
-      console.log('🎫 ClaimScreen useEffect triggered', { claimCodeFromUrl, isLoaded, isSignedIn });
-
-      // Prevent duplicate processing
-      if (isProcessingRef.current) {
-        console.log('⏸️ Already processing claim, skipping...');
-        return;
-      }
-
-      // Get claim code from URL or localStorage
-      let claimCode = claimCodeFromUrl;
+      console.log('🎫 ClaimScreen useEffect triggered', { claimCode, isLoaded, isSignedIn });
 
       if (!claimCode) {
-        // Try to get from localStorage (in case Clerk redirected after signup)
-        const storedCode = localStorage.getItem(CLAIM_CODE_STORAGE_KEY);
-        if (storedCode) {
-          console.log('📦 Found claim code in localStorage:', storedCode);
-          claimCode = storedCode;
-        }
-      }
-
-      if (!claimCode) {
-        console.log('❌ No claim code provided (URL or localStorage)');
+        console.log('❌ No claim code provided');
         setStatus('no-code');
         return;
       }
 
-      // If not authenticated, save code to localStorage and wait
       if (!isLoaded || !isSignedIn) {
-        console.log('⏳ Not authenticated yet, saving code to localStorage...');
-        localStorage.setItem(CLAIM_CODE_STORAGE_KEY, claimCode);
+        console.log('⏳ Waiting for auth to load...');
         return;
       }
 
       console.log('🎫 Processing claim with code:', claimCode);
 
       try {
-        isProcessingRef.current = true; // Mark as processing
         setStatus('loading');
         console.log('📡 Calling backend.hub.claim...');
 
         const data = await backend.hub.claim({ claimCode });
 
         console.log('✅ Claim successful:', data);
-
-        // Clear localStorage on success
-        localStorage.removeItem(CLAIM_CODE_STORAGE_KEY);
-
         setStatus('success');
 
         setTimeout(() => {
@@ -74,19 +46,13 @@ export default function ClaimScreen() {
         }, 2000);
       } catch (err: any) {
         console.error('❌ Claim failed:', err);
-
-        // Clear localStorage on error too
-        localStorage.removeItem(CLAIM_CODE_STORAGE_KEY);
-
         setErrorMessage(err.message || 'Erro ao resgatar código. Tente novamente.');
         setStatus('error');
-      } finally {
-        isProcessingRef.current = false; // Reset processing flag
       }
     };
 
     processClaim();
-  }, [claimCodeFromUrl, isLoaded, isSignedIn, navigate, backend]);
+  }, [claimCode, isLoaded, isSignedIn, navigate, backend]);
 
   // Loading state
   if (status === 'loading') {

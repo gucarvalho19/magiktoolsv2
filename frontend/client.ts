@@ -125,8 +125,6 @@ export namespace hub {
             this.getMembership = this.getMembership.bind(this)
             this.linkMembership = this.linkMembership.bind(this)
             this.revokeMembership = this.revokeMembership.bind(this)
-            this.webhookClerk = this.webhookClerk.bind(this)
-            this.webhookClerkDebug = this.webhookClerkDebug.bind(this)
             this.webhookKiwify = this.webhookKiwify.bind(this)
             this.webhookKiwifyDebug = this.webhookKiwifyDebug.bind(this)
             this.whoami = this.whoami.bind(this)
@@ -191,22 +189,6 @@ export namespace hub {
             // Now make the actual call to the API
             const resp = await this.baseClient.callTypedAPI(`/_admin/memberships/${encodeURIComponent(params.membershipId)}/revoke`, {method: "POST", body: undefined})
             return JSON.parse(await resp.text(), dateReviver) as ResponseType<typeof api_hub_admin_memberships_revokeMembership>
-        }
-
-        /**
-         * Webhook endpoint minimalista para testar registro
-         */
-        public async webhookClerk(options: PickMethods<"POST"> = {}): Promise<globalThis.Response> {
-            options.method ||= "POST";
-            return this.baseClient.callAPI(`/webhooks/clerk`, options)
-        }
-
-        /**
-         * Endpoint de debug minimalista
-         */
-        public async webhookClerkDebug(options: PickMethods<"GET"> = {}): Promise<globalThis.Response> {
-            options.method ||= "GET";
-            return this.baseClient.callAPI(`/webhooks/clerk/_debug`, options)
         }
 
         public async webhookKiwify(options: PickMethods<"POST"> = {}): Promise<globalThis.Response> {

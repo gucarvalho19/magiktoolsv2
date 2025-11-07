@@ -15,8 +15,6 @@ const ADMIN_EMAILS = [
   // Adicione outros emails de admin aqui
 ];
 
-const CLAIM_CODE_STORAGE_KEY = 'pending_claim_code';
-
 export default function MembershipGate({ children }: MembershipGateProps) {
   const { isLoaded, isSignedIn } = useAuth();
   const { isLoaded: userLoaded, user } = useUser();
@@ -32,14 +30,6 @@ export default function MembershipGate({ children }: MembershipGateProps) {
     if (!isLoaded || !isSignedIn) {
       console.log('❌ Not loaded or not signed in');
       setLoading(false);
-      return;
-    }
-
-    // Check for pending claim code first
-    const pendingClaimCode = localStorage.getItem(CLAIM_CODE_STORAGE_KEY);
-    if (pendingClaimCode) {
-      console.log('🎫 Found pending claim code in localStorage, redirecting to /claim...');
-      navigate('/claim');
       return;
     }
 

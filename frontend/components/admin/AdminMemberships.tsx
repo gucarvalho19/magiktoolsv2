@@ -205,7 +205,7 @@ export default function AdminMemberships() {
         <Card className="mt-6 p-4 bg-blue-50 border-blue-200">
           <h3 className="font-bold text-blue-800 mb-2">ℹ️ Informações Importantes</h3>
           <ul className="text-sm text-blue-700 space-y-1 list-disc list-inside">
-            <li>O status será automaticamente definido como 'active' ou 'waitlisted' baseado na capacidade (limite de 50 ativos)</li>
+            <li>O status será automaticamente definido como 'active' ou 'waitlisted' baseado na capacidade (limite de 20 ativos)</li>
             <li>O claim code será igual ao Order ID da Kiwify</li>
             <li>Todas as ações são registradas no log de auditoria</li>
             <li>Verifique se não existe já um registro para este email ou Order ID</li>
