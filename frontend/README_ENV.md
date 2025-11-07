@@ -44,3 +44,5 @@ Se aparecer `[NOT SET]`, o `.env` não foi carregado corretamente.
 ## Documentação Completa
 
 Veja `/frontend/ENV_SETUP.md` para detalhes completos.
+
+#Test
