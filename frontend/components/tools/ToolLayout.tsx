@@ -1,10 +1,10 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUser } from '../../lib/useAuth';
+import { UserButton } from '@clerk/clerk-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Sun, Moon } from 'lucide-react';
-import UserAvatar from '../auth/UserAvatar';
 import Logo from '../Logo';
 
 interface ToolLayoutProps {
@@ -42,7 +42,7 @@ export default function ToolLayout({ children }: ToolLayoutProps) {
             >
               {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </Button>
-            <UserAvatar showName={false} />
+            <UserButton afterSignOutUrl="/" />
           </div>
         </div>
       </header>

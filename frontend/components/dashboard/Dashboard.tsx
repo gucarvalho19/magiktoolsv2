@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useUser } from '../../lib/useAuth';
+import { UserButton } from '@clerk/clerk-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Sun, Moon, Brain, Wrench, Search, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { tools, isNewTool } from '../../lib/tools';
-import UserAvatar from '../auth/UserAvatar';
 import Logo from '../Logo';
 
 function HeroBannerLogo() {
@@ -171,7 +171,7 @@ export default function Dashboard() {
             >
               {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
             </Button>
-            <UserAvatar />
+            <UserButton afterSignOutUrl="/" />
           </div>
         </div>
       </header>
